@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-import pygame
+import game
 
 @dataclass
 class Kaart:
@@ -7,9 +7,12 @@ class Kaart:
     vorm : int
     vulling : int
     aantal : int
+    
+    def getValues(self):
+        return [self.kleur, self.vorm, self.vulling, self.aantal]
 
 def main():
-    pygame.init()
+    game.initialize()
 
 if __name__ == "__main__":
     main()
