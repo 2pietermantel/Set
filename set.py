@@ -228,6 +228,9 @@ class Grid:
         for i in range(12):
             kaart = self.kaarten.pop()
             self.plaatsKaart(kaart, i)
+        
+        self.trekstapel = VisualCard(STAPEL_POSITIE)
+        game_objects.append(self.trekstapel)
 
     def plaatsKaart(self, kaart, lege_plek):
         card = SetCard(STAPEL_POSITIE, kaart)
