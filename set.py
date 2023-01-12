@@ -1,4 +1,5 @@
 import pygame
+import random
 from dataclasses import dataclass
 
 # === VARIABELEN ===
@@ -177,6 +178,25 @@ class SelectionHandler:
             self.clickable_object.click(position)
             
         self.mouse_down_on_object = False
+
+class Grid:
+    def __init__(self):
+        Posities = [(230, 150), (350, 150), (470, 150), (590, 150), (710, 150), (830, 150),
+                    (230, 370), (350, 370), (470, 370), (590, 370), (710, 370), (830, 370)]
+        stapelPositie = (950,130)
+        aflegstapelPositie = (950,390)
+        kaarten = []
+        for kleur in range(1,4):
+            for vorm in range(1,4):
+                for vulling in range(1,4):
+                    for aantal in range(1,4):
+                        kaarten.append(Kaart(kleur, vorm, vulling, aantal))
+        random.shuffle(kaarten)
+
+
+    def plaatsKaart(self, kaart):
+        kaart.glide()
+        
     
 # === FUNCTIES ===    
 def isEenSet(kaarten):
