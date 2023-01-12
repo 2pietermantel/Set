@@ -2,8 +2,8 @@ import pygame
 from dataclasses import dataclass
 
 # Some variables
-WIDTH = 800 # pixels
-HEIGHT = 600 # pixels
+WIDTH = 1280 # pixels
+HEIGHT = 720 # pixels
 
 GLIDE_DURATION = 0.5 # seconds
 FPS = 60
@@ -95,7 +95,7 @@ class SetCard(VisualCard):
         
         super().__init__(position, filename)
 
-# === OTHER OBJECTS
+# === OTHER OBJECTS ===
 @dataclass
 class GlideAnimation:
     begin : tuple
@@ -129,6 +129,8 @@ class GlideAnimation:
     def isFinished(self):
         return self.current_tick >= total_glide_ticks
     
+# === FUNCTIES ===    
+
 # Start het spel
 if __name__ == "__main__":
     initialize()
