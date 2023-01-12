@@ -20,11 +20,11 @@ CARD_HEIGHT = 200
 
 temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * SPACE_BETWEEN) // 2
 temp_y = (HEIGHT - 2 * CARD_HEIGHT - SPACE_BETWEEN) // 2
-POSITIES = [(temp_x, temp_y)]
+POSITIES = []
 for y in range(2):
-    for x in range(1,6):
-        temp_x += CARD_WIDTH + SPACE_BETWEEN
+    for x in range(6):
         POSITIES.append((temp_x, temp_y))
+        temp_x += CARD_WIDTH + SPACE_BETWEEN
     if y == 1:
         break
     temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * SPACE_BETWEEN) // 2
@@ -65,6 +65,8 @@ def initialize():
     
     sc = ScoreCard((20, 20))
     game_objects.append(sc)
+    
+    Grid()
     
     loop()
     
@@ -223,15 +225,14 @@ class Grid:
                     for aantal in range(1,4):
                         self.kaarten.append(Kaart(kleur, vorm, vulling, aantal))
         random.shuffle(self.kaarten)
-        for i in range(81,69,-1):
-            SetCard(STAPEL_POSITIE, self.kaarten[i])
-            self.kaarten.pop()
+        for i in range(12):
+            kaart = self.kaarten.pop()
+            self.plaatsKaart(kaart, i)
 
     def plaatsKaart(self, kaart, lege_plek):
         card = SetCard(STAPEL_POSITIE, kaart)
         game_objects.append(card)
-        kaart.glide(lege_plek)
-        
+        card.glide(POSITIES[lege_plek])
     
 # === FUNCTIES ===    
 def isEenSet(kaarten):
