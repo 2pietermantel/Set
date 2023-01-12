@@ -8,7 +8,7 @@ WIDTH = 1280 # pixels
 HEIGHT = 720 # pixels
 CARD_MARGIN = 20 # pixels
 
-GLIDE_DURATION = 1 # seconds
+GLIDE_DURATION = 0.5 # seconds
 FPS = 60
 
 # Colours (R, G, B)
@@ -269,7 +269,10 @@ class GlideAnimation:
         dx = self.end[0] - self.begin[0]
         dy = self.end[1] - self.begin[1]
         dt = self.current_tick / total_glide_ticks
-        f = -0.2*(dt-1.5)**4+1
+        
+        # f = -0.2*(dt-1.5)**4+1
+        f = 2 / (1 + 2 ** (- 8 * dt)) - 1
+        
         x = self.begin[0] + dx * f
         y = self.begin[1] + dy * f
         return (x, y)
@@ -323,12 +326,6 @@ class Grid:
         random.shuffle(self.kaarten_op_stapel)
         
         self.starting_card_placement = 0
-        
-        '''
-        for i in range(12):
-            kaart = self.kaarten_op_stapel.pop()
-            self.plaatsKaart(kaart, i)
-        '''
         
         self.trekstapel = VisualCard(stapel_positie)
         game_objects.append(self.trekstapel)
