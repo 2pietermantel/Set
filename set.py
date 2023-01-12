@@ -130,6 +130,39 @@ class GlideAnimation:
         return self.current_tick >= total_glide_ticks
     
 # === FUNCTIES ===    
+def isEenSet(kaarten):
+    kaart1 = kaarten[0]
+    kaart2 = kaarten[1]
+    kaart3 = kaarten[2]
+    #Controleren van gelijke kleur
+    if kaart1.kleur == kaart2.kleur:
+        if kaart1.kleur != kaart3.kleur:
+            return False
+    else:
+        if kaart1.kleur == kaart3.kleur or kaart2.kleur == kaart3.kleur:
+            return False
+    #Controleren van gelijke vorm
+    if kaart1.vorm == kaart2.vorm:
+        if kaart1.vorm != kaart3.vorm:
+            return False
+    else:
+        if kaart1.vorm == kaart3.vorm or kaart2.vorm == kaart3.vorm:
+            return False
+    #Controleren van gelijke vulling
+    if kaart1.vulling == kaart2.vulling:
+        if kaart1.vulling != kaart3.vulling:
+            return False
+    else:
+        if kaart1.vulling == kaart3.vulling or kaart2.vulling == kaart3.vulling:
+            return False
+    #Controleren van gelijk aantal
+    if kaart1.aantal == kaart2.aantal:
+        if kaart1.aantal != kaart3.aantal:
+            return False
+    else:
+        if kaart1.aantal == kaart3.aantal or kaart2.aantal == kaart3.aantal:
+            return False
+    return True
 
 # Start het spel
 if __name__ == "__main__":
