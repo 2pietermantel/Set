@@ -5,10 +5,10 @@ from dataclasses import dataclass
 WIDTH = 1280 # pixels
 HEIGHT = 720 # pixels
 
-GLIDE_DURATION = 0.5 # seconds
+GLIDE_DURATION = 1 # seconds
 FPS = 60
 
-# Colors (R, G, B)
+# Colours (R, G, B)
 COLOR_BACKGROUND = (221, 221, 221)
 
 # === PROGRAMMEERVARIABELEN ===
@@ -146,8 +146,9 @@ class GlideAnimation:
         dx = self.end[0] - self.begin[0]
         dy = self.end[1] - self.begin[1]
         dt = self.current_tick / total_glide_ticks
-        x = self.begin[0] + dx * dt
-        y = self.begin[1] + dy * dt
+        f = -0.2*(dt-1.5)**4+1
+        x = self.begin[0] + dx * f
+        y = self.begin[1] + dy * f
         return (x, y)
     
     def isFinished(self):
