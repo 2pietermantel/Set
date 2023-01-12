@@ -164,6 +164,22 @@ def isEenSet(kaarten):
             return False
     return True
 
+def vindSets(kaarten):
+    combinaties = []
+    for index1, kaart1 in enumerate(kaarten[:-2]):
+        for index2, kaart2 in enumerate(kaarten[index1+1:-1]):
+            for index3, kaart3 in enumerate(kaarten[index2+1:]):
+                x = isEenSet([kaart1,kaart2,kaart3])
+                if x == True:
+                    combinaties.append([kaart1,kaart2,kaart3])
+    return combinaties
+
+def vind1Set(kaarten):
+    combinaties = vindSets(kaarten)
+    if combinaties == []:
+        return False
+    return combinaties[0]
+
 # Start het spel
 if __name__ == "__main__":
     initialize()
