@@ -33,12 +33,12 @@ for y in range(2):
 STAPEL_POSITIE = (temp_x + CARD_WIDTH + SPACE_BETWEEN, temp_y - (CARD_HEIGHT +2 * SPACE_BETWEEN))
 AFLEGSTAPEL_POSITIE = (temp_x + CARD_WIDTH + SPACE_BETWEEN, temp_y + SPACE_BETWEEN)
 
-game_objects = [] # tick(); render(canvas)
-mouse_listeners = [] # mouse_down(position), mouse_up(position)
+game_objects = [] # tick(); render(canvas); int layer 
+mouse_listeners = [] # mouseDown(position), mouseUp(position)
 
 total_glide_ticks = int(GLIDE_DURATION * FPS)
 
-card_selection_box = pygame.image.load("kaarten\\selection_box.gif")
+card_selection_box = pygame.image.load("kaarten\\selection_box.png")
 
 # === ALLES RONDOM DE LOGICA ACHTER SET ===
 @dataclass(frozen = True)
@@ -50,6 +50,56 @@ class Kaart:
     
     def getValues(self):
         return [self.kleur, self.vorm, self.vulling, self.aantal]
+    
+def isEenSet(kaarten):
+    kaart1 = kaarten[0]
+    kaart2 = kaarten[1]
+    kaart3 = kaarten[2]
+    #Controleren van gelijke kleur
+    if kaart1.kleur == kaart2.kleur:
+        if kaart1.kleur != kaart3.kleur:
+            return False
+    else:
+        if kaart1.kleur == kaart3.kleur or kaart2.kleur == kaart3.kleur:
+            return False
+    #Controleren van gelijke vorm
+    if kaart1.vorm == kaart2.vorm:
+        if kaart1.vorm != kaart3.vorm:
+            return False
+    else:
+        if kaart1.vorm == kaart3.vorm or kaart2.vorm == kaart3.vorm:
+            return False
+    #Controleren van gelijke vulling
+    if kaart1.vulling == kaart2.vulling:
+        if kaart1.vulling != kaart3.vulling:
+            return False
+    else:
+        if kaart1.vulling == kaart3.vulling or kaart2.vulling == kaart3.vulling:
+            return False
+    #Controleren van gelijk aantal
+    if kaart1.aantal == kaart2.aantal:
+        if kaart1.aantal != kaart3.aantal:
+            return False
+    else:
+        if kaart1.aantal == kaart3.aantal or kaart2.aantal == kaart3.aantal:
+            return False
+    return True
+
+def vindSets(kaarten):
+    combinaties = []
+    for index1, kaart1 in enumerate(kaarten[:-2]):
+        for index2, kaart2 in enumerate(kaarten[index1+1:-1]):
+            for index3, kaart3 in enumerate(kaarten[index2+1:]):
+                x = isEenSet([kaart1,kaart2,kaart3])
+                if x == True:
+                    combinaties.append([kaart1,kaart2,kaart3])
+    return combinaties
+
+def vind1Set(kaarten):
+    combinaties = vindSets(kaarten)
+    if combinaties == []:
+        return False
+    return combinaties[0]
 
 # === ALLES RONDOM HET GUI ===
 def initialize():
@@ -86,11 +136,11 @@ def loop():
             # Handle mouse events
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for mouse_listener in mouse_listeners:
-                    mouse_listener.mouse_down(pygame.mouse.get_pos())
+                    mouse_listener.mouseDown(pygame.mouse.get_pos())
                     
             if event.type == pygame.MOUSEBUTTONUP:
                 for mouse_listener in mouse_listeners:
-                    mouse_listener.mouse_up(pygame.mouse.get_pos())
+                    mouse_listener.mouseUp(pygame.mouse.get_pos())
                 
         # ticking
         for game_object in game_objects:
@@ -99,8 +149,27 @@ def loop():
         # Rendering
         canvas.fill(COLOR_BACKGROUND)
         
+        layers = []
         for game_object in game_objects:
-            game_object.render(canvas)
+            if hasattr(game_object, "z_index"):
+                z_index = game_object.z_index
+            else:
+                z_index = 0
+            
+            layer = None
+            for potential_layer in layers:
+                if potential_layer.z_index == z_index:
+                    layer = potential_layer
+                    
+            if layer is None:
+                layer = Layer(z_index, pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA, 32))
+                layers.append(layer)
+                
+            game_object.render(layer.surface)
+        
+        layers.sort(key = lambda layer: layer.z_index)
+        for layer in layers:
+            canvas.blit(layer.surface, (0, 0))
         
         pygame.display.update()
         
@@ -175,6 +244,11 @@ class ScoreCard(VisualCard):
 
 # === OTHER OBJECTS ===
 @dataclass
+class Layer:
+    z_index : int
+    surface : pygame.Surface
+
+@dataclass
 class GlideAnimation:
     begin : tuple
     end : tuple
@@ -206,11 +280,11 @@ class SelectionHandler:
         self.clickable_object = clickable_object
         self.mouse_down_on_object = False
         
-    def mouse_down(self, position):
+    def mouseDown(self, position):
         if self.clickable_object.isMouseInside(position):
             self.mouse_down_on_object = True
     
-    def mouse_up(self, position):
+    def mouseUp(self, position):
         if self.mouse_down_on_object and self.clickable_object.isMouseInside(position):
             self.clickable_object.click(position)
             
@@ -236,57 +310,6 @@ class Grid:
         card = SetCard(STAPEL_POSITIE, kaart)
         game_objects.append(card)
         card.glide(POSITIES[lege_plek])
-    
-# === FUNCTIES ===    
-def isEenSet(kaarten):
-    kaart1 = kaarten[0]
-    kaart2 = kaarten[1]
-    kaart3 = kaarten[2]
-    #Controleren van gelijke kleur
-    if kaart1.kleur == kaart2.kleur:
-        if kaart1.kleur != kaart3.kleur:
-            return False
-    else:
-        if kaart1.kleur == kaart3.kleur or kaart2.kleur == kaart3.kleur:
-            return False
-    #Controleren van gelijke vorm
-    if kaart1.vorm == kaart2.vorm:
-        if kaart1.vorm != kaart3.vorm:
-            return False
-    else:
-        if kaart1.vorm == kaart3.vorm or kaart2.vorm == kaart3.vorm:
-            return False
-    #Controleren van gelijke vulling
-    if kaart1.vulling == kaart2.vulling:
-        if kaart1.vulling != kaart3.vulling:
-            return False
-    else:
-        if kaart1.vulling == kaart3.vulling or kaart2.vulling == kaart3.vulling:
-            return False
-    #Controleren van gelijk aantal
-    if kaart1.aantal == kaart2.aantal:
-        if kaart1.aantal != kaart3.aantal:
-            return False
-    else:
-        if kaart1.aantal == kaart3.aantal or kaart2.aantal == kaart3.aantal:
-            return False
-    return True
-
-def vindSets(kaarten):
-    combinaties = []
-    for index1, kaart1 in enumerate(kaarten[:-2]):
-        for index2, kaart2 in enumerate(kaarten[index1+1:-1]):
-            for index3, kaart3 in enumerate(kaarten[index2+1:]):
-                x = isEenSet([kaart1,kaart2,kaart3])
-                if x == True:
-                    combinaties.append([kaart1,kaart2,kaart3])
-    return combinaties
-
-def vind1Set(kaarten):
-    combinaties = vindSets(kaarten)
-    if combinaties == []:
-        return False
-    return combinaties[0]
 
 # Start het spel
 if __name__ == "__main__":
