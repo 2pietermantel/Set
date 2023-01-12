@@ -215,11 +215,11 @@ class Grid:
                         self.kaarten.append(Kaart(kleur, vorm, vulling, aantal))
         random.shuffle(self.kaarten)
         for i in range(81,69,-1):
-            SetCard(stapel_positie, self.kaarten[i])
+            SetCard(STAPEL_POSITIE, self.kaarten[i])
             self.kaarten.pop()
 
     def plaatsKaart(self, kaart, lege_plek):
-        card = SetCard(stapel_positie, kaart)
+        card = SetCard(STAPEL_POSITIE, kaart)
         game_objects.append(card)
         kaart.glide(lege_plek)
         
