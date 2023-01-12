@@ -15,7 +15,7 @@ game_objects = []
 total_glide_ticks = GLIDE_DURATION * FPS
 
 # === ALLES RONDOM DE LOGICA ACHTER SET ===
-@dataclass
+@dataclass(frozen = True)
 class Kaart:
     kleur : int
     vorm : int
