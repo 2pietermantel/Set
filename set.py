@@ -56,7 +56,7 @@ def initialize():
     pygame.init()
     
     pygame.font.init()
-    ScoreCard.FONT = pygame.font.SysFont("Arial", 32, bold = True)
+    ScoreCard.FONT = pygame.font.SysFont("Arial", ScoreCard.FONT_SIZE, bold = True)
     
     vc = SetCard(position = (300, 100), card = Kaart(2,3,3,1))
     
@@ -153,14 +153,23 @@ class SetCard(VisualCard):
     
 class ScoreCard(VisualCard):
     FONT = None # wordt in de initialize() geinitializeerd
+    FONT_SIZE = 72
     
     def __init__(self, position):
         super().__init__(position, "blank")
         
     def render(self, canvas):
         super().render(canvas)
+        
         text_surface = ScoreCard.FONT.render("32", True, COLOR_TEXT)
-        canvas.blit(text_surface, self.position)
+        rect = text_surface.get_rect()
+        
+        center_x = self.position[0] + CARD_WIDTH // 2
+        center_y = self.position[1] + CARD_HEIGHT // 2
+        text_x = center_x - rect.width // 2
+        text_y = center_y - rect.height // 2
+        
+        canvas.blit(text_surface, (text_x, text_y))
 
 # === OTHER OBJECTS ===
 @dataclass
