@@ -194,8 +194,10 @@ class Grid:
         random.shuffle(kaarten)
 
 
-    def plaatsKaart(self, kaart):
-        kaart.glide()
+    def plaatsKaart(self, kaart, lege_plek):
+        card = SetCard(stapel_positie, kaart)
+        game_objects.append(card)
+        kaart.glide(lege_plek)
         
     
 # === FUNCTIES ===    
