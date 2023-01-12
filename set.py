@@ -13,18 +13,21 @@ FPS = 60
 
 # Colours (R, G, B)
 COLOR_BACKGROUND = (221, 221, 221)
-COLOR_TEXT = (0,0,0)
+COLOR_TEXT = (0, 0, 0)
+COLOR_TRANSPARENT = (0, 0, 0, 0)
 
 # === PROGRAMMEERVARIABELEN ===
 CARD_WIDTH = 100
 CARD_HEIGHT = 200
 
 posities = []
-stapel_positie = [0,0]
-aflegstapel_positie = [0,0]
+stapel_positie = None
+aflegstapel_positie = None
 
-game_objects = [] # tick(); render(canvas); int layer 
+game_objects = [] # tick(); render(surface); int layer 
 mouse_listeners = [] # mouseDown(position), mouseUp(position)
+
+layers = []
 
 total_glide_ticks = int(GLIDE_DURATION * FPS)
 
@@ -149,27 +152,7 @@ def loop():
         # Rendering
         canvas.fill(COLOR_BACKGROUND)
         
-        layers = []
-        for game_object in game_objects:
-            if hasattr(game_object, "z_index"):
-                z_index = game_object.z_index
-            else:
-                z_index = 0
-            
-            layer = None
-            for potential_layer in layers:
-                if potential_layer.z_index == z_index:
-                    layer = potential_layer
-                    
-            if layer is None:
-                layer = Layer(z_index, pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA, 32))
-                layers.append(layer)
-                
-            game_object.render(layer.surface)
-        
-        layers.sort(key = lambda layer: layer.z_index)
-        for layer in layers:
-            canvas.blit(layer.surface, (0, 0))
+        render(canvas)
         
         pygame.display.update()
         
@@ -179,6 +162,45 @@ def loop():
         clock.tick(FPS)
                 
     pygame.quit()
+    
+def render(canvas):
+    # Make all layers transparent
+    for layer in layers:
+        layer.surface.fill(COLOR_TRANSPARENT)
+        layer.used = False
+    
+    for game_object in game_objects:
+        # Get the z-index, with a default value of 0
+        if hasattr(game_object, "z_index"):
+            z_index = game_object.z_index
+        else:
+            z_index = 0
+        
+        # Get the corresponding layer
+        layer = None
+        for potential_layer in layers:
+            if potential_layer.z_index == z_index:
+                layer = potential_layer
+                
+        # If no layer with that z-index exists yet, create one
+        if layer is None:
+            layer = Layer(z_index, pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA, 32))
+            layers.append(layer)
+            
+        # Mark this layer as still being used, so it will not be removed
+        layer.used = True
+            
+        # Render the game object
+        game_object.render(layer.surface)
+    
+    # Sort the layers, so that the layers with lowest z-index will be rendered first, and therefore lowest
+    layers.sort(key = lambda layer: layer.z_index)
+    for layer in layers:
+        canvas.blit(layer.surface, (0, 0))
+        
+        # Remove the layer if it is no longer used
+        if not layer.used:
+            layers.remove(layer)
 
 # === GAME OBJECTS ===
 class VisualCard:
@@ -196,8 +218,8 @@ class VisualCard:
             if self.glide_animation.isFinished():
                 self.gliding = False
         
-    def render(self, canvas):
-        canvas.blit(self.texture, self.position)
+    def render(self, surface):
+        surface.blit(self.texture, self.position)
         
     def glide(self, new_position : tuple):
         self.gliding = True
@@ -213,10 +235,10 @@ class SetCard(VisualCard):
         self.selection_handler = SelectionHandler(self)
         self.selected = False
         
-    def render(self, canvas):
+    def render(self, surface):
         if self.selected:
-            canvas.blit(card_selection_box, (self.position[0] - 5, self.position[1] - 5))
-        super().render(canvas)
+            surface.blit(card_selection_box, (self.position[0] - 5, self.position[1] - 5))
+        super().render(surface)
     
     def click(self, position):
         self.selected = not self.selected
@@ -232,8 +254,8 @@ class ScoreCard(VisualCard):
     def __init__(self, position):
         super().__init__(position, "blank")
         
-    def render(self, canvas):
-        super().render(canvas)
+    def render(self, surface):
+        super().render(surface)
         
         text_surface = ScoreCard.FONT.render("32", True, COLOR_TEXT)
         rect = text_surface.get_rect()
@@ -243,13 +265,14 @@ class ScoreCard(VisualCard):
         text_x = center_x - rect.width // 2
         text_y = center_y - rect.height // 2
         
-        canvas.blit(text_surface, (text_x, text_y))
+        surface.blit(text_surface, (text_x, text_y))
 
 # === OTHER OBJECTS ===
 @dataclass
 class Layer:
     z_index : int
     surface : pygame.Surface
+    used : bool = True
 
 @dataclass
 class GlideAnimation:
@@ -297,8 +320,9 @@ class SelectionHandler:
         self.mouse_down_on_object = False
 
 class Grid:
-    @classmethod
-    def initialize(cls):
+    @staticmethod
+    def initialize():
+        global posities, stapel_positie, aflegstapel_positie
         temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * CARD_MARGIN) // 2
         temp_y = (HEIGHT - 2 * CARD_HEIGHT - CARD_MARGIN) // 2
         for y in range(2):
@@ -310,10 +334,8 @@ class Grid:
             temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * CARD_MARGIN) // 2
             temp_y += CARD_HEIGHT + CARD_MARGIN
             
-        stapel_positie[0] = temp_x + CARD_WIDTH + CARD_MARGIN
-        stapel_positie[1] = temp_y - (CARD_HEIGHT +2 * CARD_MARGIN)
-        aflegstapel_positie[0] = temp_x + CARD_WIDTH + CARD_MARGIN
-        aflegstapel_positie[1] = temp_y + CARD_MARGIN
+        stapel_positie = (temp_x + CARD_WIDTH + CARD_MARGIN, temp_y - (CARD_HEIGHT +2 * CARD_MARGIN))
+        aflegstapel_positie = (temp_x + CARD_WIDTH + CARD_MARGIN, temp_y + CARD_MARGIN)
     
     def __init__(self):
         self.kaarten_op_stapel = []
