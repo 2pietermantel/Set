@@ -12,7 +12,7 @@ FPS = 60
 COLOR_BACKGROUND = (221, 221, 221)
 
 game_objects = []
-total_glide_ticks = GLIDE_DURATION * FPS
+total_glide_ticks = int(GLIDE_DURATION * FPS)
 
 # === ALLES RONDOM DE LOGICA ACHTER SET ===
 @dataclass(frozen = True)
