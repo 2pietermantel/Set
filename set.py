@@ -1,11 +1,12 @@
 import pygame
 import random
 from dataclasses import dataclass
+from enum import Enum
 
 # === VARIABELEN ===
 WIDTH = 1280 # pixels
 HEIGHT = 720 # pixels
-SPACE_BETWEEN = 20 #kaarten
+CARD_MARGIN = 20 # pixels
 
 GLIDE_DURATION = 1 # seconds
 FPS = 60
@@ -18,20 +19,9 @@ COLOR_TEXT = (0,0,0)
 CARD_WIDTH = 100
 CARD_HEIGHT = 200
 
-temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * SPACE_BETWEEN) // 2
-temp_y = (HEIGHT - 2 * CARD_HEIGHT - SPACE_BETWEEN) // 2
-POSITIES = []
-for y in range(2):
-    for x in range(6):
-        POSITIES.append((temp_x, temp_y))
-        temp_x += CARD_WIDTH + SPACE_BETWEEN
-    if y == 1:
-        break
-    temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * SPACE_BETWEEN) // 2
-    temp_y += CARD_HEIGHT + SPACE_BETWEEN
-
-STAPEL_POSITIE = (temp_x + CARD_WIDTH + SPACE_BETWEEN, temp_y - (CARD_HEIGHT +2 * SPACE_BETWEEN))
-AFLEGSTAPEL_POSITIE = (temp_x + CARD_WIDTH + SPACE_BETWEEN, temp_y + SPACE_BETWEEN)
+posities = []
+stapel_positie = [0,0]
+aflegstapel_positie = [0,0]
 
 game_objects = [] # tick(); render(canvas); int layer 
 mouse_listeners = [] # mouseDown(position), mouseUp(position)
@@ -39,6 +29,14 @@ mouse_listeners = [] # mouseDown(position), mouseUp(position)
 total_glide_ticks = int(GLIDE_DURATION * FPS)
 
 card_selection_box = pygame.image.load("kaarten\\selection_box.png")
+
+class GamePhase(Enum):
+    game_start = 0
+    finding_sets = 1
+
+total_ticks = 0
+total_ticks_since_phase_change = 0
+game_phase = GamePhase.game_start
 
 # === ALLES RONDOM DE LOGICA ACHTER SET ===
 @dataclass(frozen = True)
@@ -103,24 +101,24 @@ def vind1Set(kaarten):
 
 # === ALLES RONDOM HET GUI ===
 def initialize():
+    global grid
     pygame.init()
     
     pygame.font.init()
     ScoreCard.FONT = pygame.font.SysFont("Arial", ScoreCard.FONT_SIZE, bold = True)
     
-    vc = SetCard(position = (300, 100), card = Kaart(2,3,3,1))
-    
-    vc.glide((200, 200))
-    game_objects.append(vc)
+    Grid.initialize()
     
     sc = ScoreCard((20, 20))
     game_objects.append(sc)
     
-    Grid()
+    grid = Grid()
     
     loop()
     
 def loop():
+    global total_ticks, total_ticks_since_phase_change
+    
     # Initialize screen
     clock = pygame.time.Clock()
     canvas = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -143,6 +141,8 @@ def loop():
                     mouse_listener.mouseUp(pygame.mouse.get_pos())
                 
         # ticking
+        grid.tick()
+        
         for game_object in game_objects:
             game_object.tick()
         
@@ -172,6 +172,9 @@ def loop():
             canvas.blit(layer.surface, (0, 0))
         
         pygame.display.update()
+        
+        total_ticks += 1
+        total_ticks_since_phase_change += 1
         
         clock.tick(FPS)
                 
@@ -291,25 +294,65 @@ class SelectionHandler:
         self.mouse_down_on_object = False
 
 class Grid:
+    @classmethod
+    def initialize(cls):
+        temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * CARD_MARGIN) // 2
+        temp_y = (HEIGHT - 2 * CARD_HEIGHT - CARD_MARGIN) // 2
+        for y in range(2):
+            for x in range(6):
+                posities.append((temp_x, temp_y))
+                temp_x += CARD_WIDTH + CARD_MARGIN
+            if y == 1:
+                break
+            temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * CARD_MARGIN) // 2
+            temp_y += CARD_HEIGHT + CARD_MARGIN
+            
+        stapel_positie[0] = temp_x + CARD_WIDTH + CARD_MARGIN
+        stapel_positie[1] = temp_y - (CARD_HEIGHT +2 * CARD_MARGIN)
+        aflegstapel_positie[0] = temp_x + CARD_WIDTH + CARD_MARGIN
+        aflegstapel_positie[1] = temp_y + CARD_MARGIN
+    
     def __init__(self):
-        self.kaarten = []
+        self.kaarten_op_stapel = []
         for kleur in range(1,4):
             for vorm in range(1,4):
                 for vulling in range(1,4):
                     for aantal in range(1,4):
-                        self.kaarten.append(Kaart(kleur, vorm, vulling, aantal))
-        random.shuffle(self.kaarten)
-        for i in range(12):
-            kaart = self.kaarten.pop()
-            self.plaatsKaart(kaart, i)
+                        self.kaarten_op_stapel.append(Kaart(kleur, vorm, vulling, aantal))
         
-        self.trekstapel = VisualCard(STAPEL_POSITIE)
+        random.shuffle(self.kaarten_op_stapel)
+        
+        self.starting_card_placement = 0
+        
+        '''
+        for i in range(12):
+            kaart = self.kaarten_op_stapel.pop()
+            self.plaatsKaart(kaart, i)
+        '''
+        
+        self.trekstapel = VisualCard(stapel_positie)
         game_objects.append(self.trekstapel)
 
     def plaatsKaart(self, kaart, lege_plek):
-        card = SetCard(STAPEL_POSITIE, kaart)
+        card = SetCard(stapel_positie, kaart)
         game_objects.append(card)
-        card.glide(POSITIES[lege_plek])
+        card.glide(posities[lege_plek])
+        
+    def tick(self):
+        global game_phase, total_ticks_since_phase_change
+        
+        if game_phase == GamePhase.game_start:
+            # check if game start is finished
+            if total_ticks_since_phase_change >= 120:
+                game_phase = GamePhase.finding_sets
+                total_ticks_since_phase_change = 0
+                
+        if game_phase == GamePhase.game_start:
+            # add card
+            if total_ticks_since_phase_change % 10 == 0:
+                kaart = self.kaarten_op_stapel.pop()
+                self.plaatsKaart(kaart, self.starting_card_placement)
+                self.starting_card_placement += 1
 
 # Start het spel
 if __name__ == "__main__":
