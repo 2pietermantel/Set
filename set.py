@@ -20,6 +20,8 @@ mouse_listeners = [] # mouse_down(position), mouse_up(position)
 
 total_glide_ticks = int(GLIDE_DURATION * FPS)
 
+card_selection_box = pygame.image.load("kaarten\\selection_box.gif")
+
 # === ALLES RONDOM DE LOGICA ACHTER SET ===
 @dataclass(frozen = True)
 class Kaart:
@@ -111,9 +113,15 @@ class SetCard(VisualCard):
         super().__init__(position, filename)
         
         self.selection_handler = SelectionHandler(self)
+        self.selected = False
+        
+    def render(self, canvas):
+        if self.selected:
+            canvas.blit(card_selection_box, (self.position[0] - 5, self.position[1] - 5))
+        super().render(canvas)
     
     def click(self, position):
-        print("click!")
+        self.selected = not self.selected
     
     def isMouseInside(self, position):
         bounding_box = pygame.Rect(self.position, (CARD_WIDTH, CARD_HEIGHT))
