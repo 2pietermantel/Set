@@ -1,7 +1,7 @@
 import pygame
 from dataclasses import dataclass
 
-# Some variables
+# === VARIABELEN ===
 WIDTH = 1280 # pixels
 HEIGHT = 720 # pixels
 
@@ -11,7 +11,13 @@ FPS = 60
 # Colors (R, G, B)
 COLOR_BACKGROUND = (221, 221, 221)
 
-game_objects = []
+# === PROGRAMMEERVARIABELEN ===
+CARD_WIDTH = 100
+CARD_HEIGHT = 200
+
+game_objects = [] # tick(); render(canvas)
+mouse_listeners = [] # mouse_down(position), mouse_up(position)
+
 total_glide_ticks = int(GLIDE_DURATION * FPS)
 
 # === ALLES RONDOM DE LOGICA ACHTER SET ===
@@ -44,10 +50,19 @@ def loop():
     
     running = True
     while running:
-        # Check if the game should quit
         for event in pygame.event.get():
+            # Check if the game should quit
             if event.type == pygame.QUIT:
                 running = False
+                
+            # Handle mouse events
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for mouse_listener in mouse_listeners:
+                    mouse_listener.mouse_down(pygame.mouse.get_pos())
+                    
+            if event.type == pygame.MOUSEBUTTONUP:
+                for mouse_listener in mouse_listeners:
+                    mouse_listener.mouse_up(pygame.mouse.get_pos())
                 
         # ticking
         for game_object in game_objects:
@@ -94,6 +109,15 @@ class SetCard(VisualCard):
         filename = "".join([str(x) for x in card.getValues()])
         
         super().__init__(position, filename)
+        
+        self.selection_handler = SelectionHandler(self)
+    
+    def click(self, position):
+        print("click!")
+    
+    def isMouseInside(self, position):
+        bounding_box = pygame.Rect(self.position, (CARD_WIDTH, CARD_HEIGHT))
+        return bounding_box.collidepoint(position)
 
 # === OTHER OBJECTS ===
 @dataclass
@@ -128,6 +152,22 @@ class GlideAnimation:
     
     def isFinished(self):
         return self.current_tick >= total_glide_ticks
+    
+class SelectionHandler:
+    def __init__(self, clickable_object):
+        mouse_listeners.append(self)
+        self.clickable_object = clickable_object
+        self.mouse_down_on_object = False
+        
+    def mouse_down(self, position):
+        if self.clickable_object.isMouseInside(position):
+            self.mouse_down_on_object = True
+    
+    def mouse_up(self, position):
+        if self.mouse_down_on_object and self.clickable_object.isMouseInside(position):
+            self.clickable_object.click(position)
+            
+        self.mouse_down_on_object = False
     
 # === FUNCTIES ===    
 def isEenSet(kaarten):
