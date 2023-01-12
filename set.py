@@ -11,6 +11,7 @@ FPS = 60
 
 # Colours (R, G, B)
 COLOR_BACKGROUND = (221, 221, 221)
+COLOR_TEXT = (0,0,0)
 
 # === PROGRAMMEERVARIABELEN ===
 CARD_WIDTH = 100
@@ -38,10 +39,16 @@ class Kaart:
 def initialize():
     pygame.init()
     
+    pygame.font.init()
+    ScoreCard.FONT = pygame.font.SysFont("Arial", 32, bold = True)
+    
     vc = SetCard(position = (300, 100), card = Kaart(2,3,3,1))
     
     vc.glide((200, 200))
     game_objects.append(vc)
+    
+    sc = ScoreCard((20, 20))
+    game_objects.append(sc)
     
     loop()
     
@@ -127,6 +134,17 @@ class SetCard(VisualCard):
     def isMouseInside(self, position):
         bounding_box = pygame.Rect(self.position, (CARD_WIDTH, CARD_HEIGHT))
         return bounding_box.collidepoint(position)
+    
+class ScoreCard(VisualCard):
+    FONT = None # wordt in de initialize() geinitializeerd
+    
+    def __init__(self, position):
+        super().__init__(position, "blank")
+        
+    def render(self, canvas):
+        super().render(canvas)
+        text_surface = ScoreCard.FONT.render("32", True, COLOR_TEXT)
+        canvas.blit(text_surface, self.position)
 
 # === OTHER OBJECTS ===
 @dataclass
@@ -144,14 +162,6 @@ class GlideAnimation:
         self.current_tick += 1
         
     def getCurrentPosition(self):
-        # TODO: Betere animatie
-        # self.begin en self.end zijn de begin- en eindcoördinatien als tuple
-        # self.current_tick is op welke frame de animatie is
-        # total_glide_time is de totale tijd die de animatie moet duren
-        # return een tuple met de coördinaten op het huidige moment
-        
-        # voor nu is het een beweging met constante snelheid, maar het moet iets vloeiender worden
-        
         dx = self.end[0] - self.begin[0]
         dy = self.end[1] - self.begin[1]
         dt = self.current_tick / total_glide_ticks
