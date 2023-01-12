@@ -5,6 +5,7 @@ from dataclasses import dataclass
 # === VARIABELEN ===
 WIDTH = 1280 # pixels
 HEIGHT = 720 # pixels
+SPACE_BETWEEN = 20 #kaarten
 
 GLIDE_DURATION = 1 # seconds
 FPS = 60
@@ -16,6 +17,21 @@ COLOR_TEXT = (0,0,0)
 # === PROGRAMMEERVARIABELEN ===
 CARD_WIDTH = 100
 CARD_HEIGHT = 200
+
+temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * SPACE_BETWEEN) // 2
+temp_y = (HEIGHT - 2 * CARD_HEIGHT - SPACE_BETWEEN) // 2
+POSITIES = [(temp_x, temp_y)]
+for y in range(2):
+    for x in range(1,6):
+        temp_x += CARD_WIDTH + SPACE_BETWEEN
+        POSITIES.append((temp_x, temp_y))
+    if y == 1:
+        break
+    temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * SPACE_BETWEEN) // 2
+    temp_y += CARD_HEIGHT + SPACE_BETWEEN
+
+STAPEL_POSITIE = (temp_x + CARD_WIDTH + SPACE_BETWEEN, temp_y - (CARD_HEIGHT +2 * SPACE_BETWEEN))
+AFLEGSTAPEL_POSITIE = (temp_x + CARD_WIDTH + SPACE_BETWEEN, temp_y + SPACE_BETWEEN)
 
 game_objects = [] # tick(); render(canvas)
 mouse_listeners = [] # mouse_down(position), mouse_up(position)
@@ -191,18 +207,16 @@ class SelectionHandler:
 
 class Grid:
     def __init__(self):
-        Posities = [(230, 150), (350, 150), (470, 150), (590, 150), (710, 150), (830, 150),
-                    (230, 370), (350, 370), (470, 370), (590, 370), (710, 370), (830, 370)]
-        stapelPositie = (950,130)
-        aflegstapelPositie = (950,390)
-        kaarten = []
+        self.kaarten = []
         for kleur in range(1,4):
             for vorm in range(1,4):
                 for vulling in range(1,4):
                     for aantal in range(1,4):
-                        kaarten.append(Kaart(kleur, vorm, vulling, aantal))
-        random.shuffle(kaarten)
-
+                        self.kaarten.append(Kaart(kleur, vorm, vulling, aantal))
+        random.shuffle(self.kaarten)
+        for i in range(81,69,-1):
+            SetCard(stapel_positie, self.kaarten[i])
+            self.kaarten.pop()
 
     def plaatsKaart(self, kaart, lege_plek):
         card = SetCard(stapel_positie, kaart)
