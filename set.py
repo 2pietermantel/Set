@@ -34,12 +34,12 @@ total_glide_ticks = int(GLIDE_DURATION * FPS)
 card_selection_box = pygame.image.load("kaarten\\selection_box.png")
 
 class GamePhase(Enum):
-    game_start = 0
-    finding_sets = 1
+    GAME_START = 0
+    FINDING_SETS = 1
 
 total_ticks = 0
 total_ticks_since_phase_change = 0
-game_phase = GamePhase.game_start
+game_phase = GamePhase.GAME_START
 
 # === ALLES RONDOM DE LOGICA ACHTER SET ===
 @dataclass(frozen = True)
@@ -127,6 +127,7 @@ def loop():
     canvas = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Set!")
     
+    current_game_phase = game_phase
     running = True
     while running:
         for event in pygame.event.get():
@@ -158,6 +159,10 @@ def loop():
         
         total_ticks += 1
         total_ticks_since_phase_change += 1
+        
+        if game_phase != current_game_phase:
+            total_ticks_since_phase_change = 0
+            current_game_phase = game_phase
         
         clock.tick(FPS)
                 
@@ -360,13 +365,13 @@ class Grid:
     def tick(self):
         global game_phase, total_ticks_since_phase_change
         
-        if game_phase == GamePhase.game_start:
+        if game_phase == GamePhase.GAME_START:
             # check if game start is finished
             if total_ticks_since_phase_change >= 120:
-                game_phase = GamePhase.finding_sets
+                game_phase = GamePhase.FINDING_SETS
                 total_ticks_since_phase_change = 0
                 
-        if game_phase == GamePhase.game_start:
+        if game_phase == GamePhase.GAME_START:
             # add card
             if total_ticks_since_phase_change % 10 == 0:
                 kaart = self.kaarten_op_stapel.pop()
