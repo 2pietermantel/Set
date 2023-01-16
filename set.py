@@ -21,8 +21,6 @@ CARD_WIDTH = 100
 CARD_HEIGHT = 200
 
 posities = []
-stapel_positie = None
-aflegstapel_positie = None
 
 game_objects = [] # tick(); render(surface); int layer 
 mouse_listeners = [] # mouseDown(position), mouseUp(position)
@@ -112,7 +110,8 @@ def initialize():
     
     Grid.initialize()
     
-    sc = ScoreCard((20, 20))
+    sc = ScoreCard((200, 200))
+    sc.z_index = 10
     game_objects.append(sc)
     
     grid = Grid()
@@ -356,6 +355,9 @@ class Grid:
         
         self.trekstapel = VisualCard(stapel_positie)
         game_objects.append(self.trekstapel)
+        
+        self.aflegstapel = VisualCard(aflegstapel_positie, filename = "lege_aflegstapel")
+        game_objects.append(self.aflegstapel)
 
     def plaatsKaart(self, kaart, lege_plek):
         card = SetCard(stapel_positie, kaart)
