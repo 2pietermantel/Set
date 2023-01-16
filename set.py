@@ -103,8 +103,7 @@ def initialize():
     pygame.font.init()
     ScoreCard.FONT = pygame.font.SysFont("Arial", ScoreCard.FONT_SIZE, bold = True)
     
-    sc = ScoreCard((200, 200))
-    sc.z_index = 10
+    sc = ScoreCard((20, 20))
     game_objects.append(sc)
     
     grid = Grid(20)
@@ -228,6 +227,13 @@ class VisualCard:
         self.glide_animation = GlideAnimation(self.position, new_position)
         
 class SetCard(VisualCard):
+    WRONG_BLINK_DURATION = 0.2 # seconds
+    WRONG_BLINKS = 3 # times
+    
+    wrong_blink_ticks = WRONG_BLINK_DURATION * FPS # the amount of ticks the blink is displayed
+    wrong_blink_cycle_ticks = 2 * wrong_blink_ticks # the amount of ticks it is displayed AND not displayed
+    wrong_blink_total_ticks = wrong_blink_cycle_ticks * WRONG_BLINKS
+    
     def __init__(self, position = (0, 0), card = Kaart(1, 1, 1, 1)):
         # Get the filename by getting the values as a list, converting those values to strings and joining it together
         filename = "".join([str(x) for x in card.getValues()])
@@ -236,16 +242,35 @@ class SetCard(VisualCard):
         
         self.selection_handler = SelectionHandler(self)
         self.selected = False
-        
         self.selection_box_texture = ImageLoader.loadImage("kaarten\\selection_box.png")
         
+        self.wrong_blink_layer_texture = ImageLoader.loadImage("kaarten\\wrong_blink_layer.png")
+        self.wrong_blink_tick = -1
+        
+    def tick(self):
+        super().tick()
+        
+        # update wrong blink effect
+        if self.wrong_blink_tick >= 0:
+            self.wrong_blink_tick += 1
+            if self.wrong_blink_tick >= SetCard.wrong_blink_total_ticks:
+                self.wrong_blink_tick = -1
+        
     def render(self, surface):
+        # render selection
         if self.selected:
             surface.blit(self.selection_box_texture, (self.position[0] - 5, self.position[1] - 5))
+            
         super().render(surface)
+        # render wrong blink effect
+        if self.wrong_blink_tick >= 0:
+            if self.wrong_blink_tick % SetCard.wrong_blink_cycle_ticks < SetCard.wrong_blink_ticks:
+                surface.blit(self.wrong_blink_layer_texture, self.position)
     
     def click(self, position):
         self.selected = not self.selected
+        self.wrong_blink_tick = 0
+        SoundPlayer.playSound("audio\\wrong_sound.wav")
     
     def isMouseInside(self, position):
         bounding_box = pygame.Rect(self.position, (VisualCard.WIDTH, VisualCard.HEIGHT))
@@ -280,6 +305,7 @@ class Layer:
     
 class ImageLoader:
     images = {}
+    
     @staticmethod
     def loadImage(filename):
         if filename in ImageLoader.images:
@@ -288,6 +314,19 @@ class ImageLoader:
         image = pygame.image.load(filename)
         ImageLoader.images[filename] = image
         return image
+
+class SoundPlayer:
+    sounds = {}
+    
+    @staticmethod
+    def playSound(filename):
+        if filename in SoundPlayer.sounds:
+            sound = SoundPlayer.sounds[filename]
+        else:
+            sound = pygame.mixer.Sound(filename)
+            SoundPlayer.sounds[filename] = sound
+            
+        pygame.mixer.Sound.play(sound)
 
 @dataclass
 class GlideAnimation:
@@ -370,6 +409,7 @@ class Grid:
         self.starting_card_placement = 0
         
         self.trekstapel = VisualCard(self.trekstapel_positie)
+        self.trekstapel.z_index = -10
         game_objects.append(self.trekstapel)
         
         self.aflegstapel = VisualCard(self.aflegstapel_positie, filename = "lege_aflegstapel")
