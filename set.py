@@ -4,36 +4,31 @@ from dataclasses import dataclass
 from enum import Enum
 
 # === VARIABELEN ===
-WIDTH = 1280 # pixels
-HEIGHT = 720 # pixels
-CARD_MARGIN = 20 # pixels
+SCREEN_WIDTH = 1280 # pixels
+SCREEN_HEIGHT = 720 # pixels
 
-GLIDE_DURATION = 0.5 # seconds
 FPS = 60
 
-# Colours (R, G, B)
-COLOR_BACKGROUND = (221, 221, 221)
-COLOR_TEXT = (0, 0, 0)
-COLOR_TRANSPARENT = (0, 0, 0, 0)
-
-# === PROGRAMMEERVARIABELEN ===
-CARD_WIDTH = 100
-CARD_HEIGHT = 200
-
-posities = []
-
-game_objects = [] # tick(); render(surface); int layer 
-mouse_listeners = [] # mouseDown(position), mouseUp(position)
-
-layers = []
-
-total_glide_ticks = int(GLIDE_DURATION * FPS)
-
-card_selection_box = pygame.image.load("kaarten\\selection_box.png")
-
+# === Enums ===
 class GamePhase(Enum):
     GAME_START = 0
     FINDING_SETS = 1
+    
+class Colours(Enum):
+    # (R, G, B) of (R, G, B, A)
+    BACKGROUND = (221, 221, 221),
+    TEXT = (0,0,0),
+    TRANSPARENT = (0, 0, 0, 0)
+
+# === PROGRAMMEERVARIABELEN ===
+# game_objects zijn de objects met de functies tick() en render(surface).
+# Ook kunnen ze een int z_index hebben.
+game_objects = []
+
+# Objects met een mouseDown(position) en mouseUp(position).
+mouse_listeners = []
+
+layers = []
 
 total_ticks = 0
 total_ticks_since_phase_change = 0
@@ -108,13 +103,11 @@ def initialize():
     pygame.font.init()
     ScoreCard.FONT = pygame.font.SysFont("Arial", ScoreCard.FONT_SIZE, bold = True)
     
-    Grid.initialize()
-    
     sc = ScoreCard((200, 200))
     sc.z_index = 10
     game_objects.append(sc)
     
-    grid = Grid()
+    grid = Grid(20)
     
     loop()
     
@@ -123,7 +116,7 @@ def loop():
     
     # Initialize screen
     clock = pygame.time.Clock()
-    canvas = pygame.display.set_mode((WIDTH, HEIGHT))
+    canvas = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Set!")
     
     current_game_phase = game_phase
@@ -143,14 +136,10 @@ def loop():
                 for mouse_listener in mouse_listeners:
                     mouse_listener.mouseUp(pygame.mouse.get_pos())
                 
-        # ticking
-        grid.tick()
-        
-        for game_object in game_objects:
-            game_object.tick()
+        tick()
         
         # Rendering
-        canvas.fill(COLOR_BACKGROUND)
+        canvas.fill(Colours.BACKGROUND.value)
         
         render(canvas)
         
@@ -167,10 +156,16 @@ def loop():
                 
     pygame.quit()
     
+def tick():
+    for game_object in game_objects:
+        game_object.tick()
+        
+    grid.tick()
+    
 def render(canvas):
     # Make all layers transparent
     for layer in layers:
-        layer.surface.fill(COLOR_TRANSPARENT)
+        layer.surface.fill(Colours.TRANSPARENT.value)
         layer.used = False
     
     for game_object in game_objects:
@@ -188,7 +183,7 @@ def render(canvas):
                 
         # If no layer with that z-index exists yet, create one
         if layer is None:
-            layer = Layer(z_index, pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA, 32))
+            layer = Layer(z_index, pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA, 32))
             layers.append(layer)
             
         # Mark this layer as still being used, so it will not be removed
@@ -208,11 +203,14 @@ def render(canvas):
 
 # === GAME OBJECTS ===
 class VisualCard:
+    WIDTH = 100
+    HEIGHT = 200
+    
     def __init__(self, position = (0, 0), filename = "blank"):
         self.position = position
         self.gliding = False
             
-        self.texture = pygame.image.load(f"kaarten\\{filename}.gif")
+        self.texture = ImageLoader.loadImage(f"kaarten\\{filename}.gif")
         
     def tick(self):
         # Handle Glide Animation
@@ -239,16 +237,18 @@ class SetCard(VisualCard):
         self.selection_handler = SelectionHandler(self)
         self.selected = False
         
+        self.selection_box_texture = ImageLoader.loadImage("kaarten\\selection_box.png")
+        
     def render(self, surface):
         if self.selected:
-            surface.blit(card_selection_box, (self.position[0] - 5, self.position[1] - 5))
+            surface.blit(self.selection_box_texture, (self.position[0] - 5, self.position[1] - 5))
         super().render(surface)
     
     def click(self, position):
         self.selected = not self.selected
     
     def isMouseInside(self, position):
-        bounding_box = pygame.Rect(self.position, (CARD_WIDTH, CARD_HEIGHT))
+        bounding_box = pygame.Rect(self.position, (VisualCard.WIDTH, VisualCard.HEIGHT))
         return bounding_box.collidepoint(position)
     
 class ScoreCard(VisualCard):
@@ -261,11 +261,11 @@ class ScoreCard(VisualCard):
     def render(self, surface):
         super().render(surface)
         
-        text_surface = ScoreCard.FONT.render("32", True, COLOR_TEXT)
+        text_surface = ScoreCard.FONT.render("32", True, Colours.TEXT.value)
         rect = text_surface.get_rect()
         
-        center_x = self.position[0] + CARD_WIDTH // 2
-        center_y = self.position[1] + CARD_HEIGHT // 2
+        center_x = self.position[0] + VisualCard.WIDTH // 2
+        center_y = self.position[1] + VisualCard.HEIGHT // 2
         text_x = center_x - rect.width // 2
         text_y = center_y - rect.height // 2
         
@@ -277,12 +277,26 @@ class Layer:
     z_index : int
     surface : pygame.Surface
     used : bool = True
+    
+class ImageLoader:
+    images = {}
+    @staticmethod
+    def loadImage(filename):
+        if filename in ImageLoader.images:
+            return ImageLoader.images[filename]
+        
+        image = pygame.image.load(filename)
+        ImageLoader.images[filename] = image
+        return image
 
 @dataclass
 class GlideAnimation:
     begin : tuple
     end : tuple
     current_tick : int
+    
+    GLIDE_DURATION = 0.5 # seconds
+    total_glide_ticks = int(GLIDE_DURATION * FPS)
     
     def __init__(self, begin, end, current_tick = 0):
         self.begin = begin
@@ -295,7 +309,7 @@ class GlideAnimation:
     def getCurrentPosition(self):
         dx = self.end[0] - self.begin[0]
         dy = self.end[1] - self.begin[1]
-        dt = self.current_tick / total_glide_ticks
+        dt = self.current_tick / GlideAnimation.total_glide_ticks
         
         # f = -0.2*(dt-1.5)**4+1
         f = 2 / (1 + 2 ** (- 8 * dt)) - 1
@@ -305,7 +319,7 @@ class GlideAnimation:
         return (x, y)
     
     def isFinished(self):
-        return self.current_tick >= total_glide_ticks
+        return self.current_tick >= GlideAnimation.total_glide_ticks
     
 class SelectionHandler:
     def __init__(self, clickable_object):
@@ -324,24 +338,26 @@ class SelectionHandler:
         self.mouse_down_on_object = False
 
 class Grid:
-    @staticmethod
-    def initialize():
-        global posities, stapel_positie, aflegstapel_positie
-        temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * CARD_MARGIN) // 2
-        temp_y = (HEIGHT - 2 * CARD_HEIGHT - CARD_MARGIN) // 2
+    def initializePositions(self):
+        self.posities = []
+        temp_x = (SCREEN_WIDTH - 7 * VisualCard.WIDTH - 6 * self.card_margin) // 2
+        temp_y = (SCREEN_HEIGHT - 2 * VisualCard.HEIGHT - self.card_margin) // 2
         for y in range(2):
             for x in range(6):
-                posities.append((temp_x, temp_y))
-                temp_x += CARD_WIDTH + CARD_MARGIN
+                self.posities.append((temp_x, temp_y))
+                temp_x += VisualCard.WIDTH + self.card_margin
             if y == 1:
                 break
-            temp_x = (WIDTH - 7 * CARD_WIDTH - 6 * CARD_MARGIN) // 2
-            temp_y += CARD_HEIGHT + CARD_MARGIN
+            temp_x = (SCREEN_WIDTH - 7 * VisualCard.WIDTH - 6 * self.card_margin) // 2
+            temp_y += VisualCard.HEIGHT + self.card_margin
             
-        stapel_positie = (temp_x + CARD_WIDTH + CARD_MARGIN, temp_y - (CARD_HEIGHT +2 * CARD_MARGIN))
-        aflegstapel_positie = (temp_x + CARD_WIDTH + CARD_MARGIN, temp_y + CARD_MARGIN)
+        self.trekstapel_positie = (temp_x + VisualCard.WIDTH + self.card_margin, temp_y - (VisualCard.HEIGHT + 2 * self.card_margin))
+        self.aflegstapel_positie = (temp_x + VisualCard.WIDTH + self.card_margin, temp_y + self.card_margin)
     
-    def __init__(self):
+    def __init__(self, card_margin):
+        self.card_margin = card_margin
+        self.initializePositions()
+        
         self.kaarten_op_stapel = []
         for kleur in range(1,4):
             for vorm in range(1,4):
@@ -353,16 +369,16 @@ class Grid:
         
         self.starting_card_placement = 0
         
-        self.trekstapel = VisualCard(stapel_positie)
+        self.trekstapel = VisualCard(self.trekstapel_positie)
         game_objects.append(self.trekstapel)
         
-        self.aflegstapel = VisualCard(aflegstapel_positie, filename = "lege_aflegstapel")
+        self.aflegstapel = VisualCard(self.aflegstapel_positie, filename = "lege_aflegstapel")
         game_objects.append(self.aflegstapel)
 
     def plaatsKaart(self, kaart, lege_plek):
-        card = SetCard(stapel_positie, kaart)
+        card = SetCard(self.trekstapel_positie, kaart)
         game_objects.append(card)
-        card.glide(posities[lege_plek])
+        card.glide(self.posities[lege_plek])
         
     def tick(self):
         global game_phase, total_ticks_since_phase_change
