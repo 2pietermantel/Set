@@ -178,16 +178,22 @@ def tick():
             if isEenSet(kaarten):
                 pass
             else:
+                grid.deselectAllCards()
                 for card in selected_cards:
                     card.wrong_blink_tick = 0
-                    card.selected = False
-                selected_cards = []
+
         if total_ticks_since_new_card == SECONDS_TO_CHOOSE_SET * FPS:
-            sets = vindSets(grid.kaarten)
-            set_exists = vind1Set(grid.kaarten)
+            sets = vindSets(grid.getKaarten())
+            set_exists = vind1Set(grid.getKaarten())
             if set_exists:
+                grid.deselectAllCards()
                 chosen_set = sets[0]
-                
+                chosen_set_cards = []
+                for card in grid.cards:
+                    if card.kaart in chosen_set:
+                        chosen_set_cards.append(card)
+                for card in chosen_set_cards:
+                    card.glide(pc.score_card.position)
     
 def render(canvas):
     # Make all layers transparent
@@ -475,7 +481,7 @@ class Grid:
         self.trekstapel = VisualCard(self.trekstapel_positie)
         self.trekstapel.z_index = -10
         game_objects.append(self.trekstapel)
-        self.kaarten = self.kaarten_op_stapel[:12]
+        self.cards = []
         
         self.aflegstapel = VisualCard(self.aflegstapel_positie, filename = "lege_aflegstapel")
         game_objects.append(self.aflegstapel)
@@ -483,6 +489,7 @@ class Grid:
     def plaatsKaart(self, kaart, lege_plek):
         card = SetCard(self.trekstapel_positie, kaart)
         game_objects.append(card)
+        self.cards.append(card)
         card.glide(self.posities[lege_plek])
         
     def tick(self):
@@ -499,6 +506,15 @@ class Grid:
                 kaart = self.kaarten_op_stapel.pop()
                 self.plaatsKaart(kaart, self.starting_card_placement)
                 self.starting_card_placement += 1
+                
+    def getKaarten(self):
+        return [card.kaart for card in self.cards]
+    
+    def deselectAllCards(self):
+        global selected_cards
+        for card in selected_cards:
+            card.selected = False
+        selected_cards = []
 
 # Start het spel
 if __name__ == "__main__":
