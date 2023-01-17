@@ -9,7 +9,7 @@ SCREEN_HEIGHT = 720 # pixels
 
 FPS = 60
 
-SECONDS_TO_CHOOSE_SET = 1
+SECONDS_TO_CHOOSE_SET = 30
 # === Enums ===
 class GamePhase(Enum):
     GAME_START = 0
@@ -176,7 +176,11 @@ def tick():
         if len(selected_cards) == 3:
             kaarten = [card.kaart for card in selected_cards]
             if isEenSet(kaarten):
-                pass
+                for card in selected_cards:
+                    card.glide(you.score_card.position)
+                    card.chosen = True
+                you.score += 1
+                grid.deselectAllCards()
             else:
                 grid.deselectAllCards()
                 for card in selected_cards:
@@ -194,6 +198,8 @@ def tick():
                         chosen_set_cards.append(card)
                 for card in chosen_set_cards:
                     card.glide(pc.score_card.position)
+                    card.chosen = True
+                pc.score += 1
     
 def render(canvas):
     # Make all layers transparent
@@ -298,6 +304,7 @@ class SetCard(VisualCard):
         # delete card when correctly chosen
         if self.chosen and not self.gliding:
             game_objects.remove(self)
+            mouse_listeners.remove(self.selection_handler)
             grid.cards.remove(self)
         
     def render(self, surface):
