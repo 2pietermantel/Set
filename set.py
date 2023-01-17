@@ -20,8 +20,8 @@ class Colours(Enum):
     BACKGROUND = (221, 221, 221),
     TRANSPARENT = (0, 0, 0, 0),
     
-    PLAYER = (255, 0, 0),
-    AI = (0, 255, 0)
+    YOU = (255, 0, 0),
+    PC = (0, 0, 255)
 
 # === PROGRAMMEERVARIABELEN ===
 # game_objects zijn de objects met de functies tick() en render(surface).
@@ -103,16 +103,17 @@ def vind1Set(kaarten):
 
 # === ALLES RONDOM HET GUI ===
 def initialize():
-    global grid
+    global grid, you, pc
     pygame.init()
     
     pygame.font.init()
-    ScoreCard.FONT = pygame.font.SysFont("Arial", ScoreCard.FONT_SIZE, bold = True)
-    
-    sc = ScoreCard((20, 20), Colours.PLAYER.value, "JIJ")
-    game_objects.append(sc)
+    ScoreCard.SCORE_FONT = pygame.font.SysFont("Arial", ScoreCard.SCORE_FONT_SIZE, bold = True)
+    ScoreCard.NAME_FONT = pygame.font.SysFont("Arial", ScoreCard.NAME_FONT_SIZE, bold = True)
     
     grid = Grid(20)
+    
+    you = Player("YOU", Colours.YOU.value,  (20, 20))
+    pc = Player("PC", Colours.PC.value, (20, 20 + VisualCard.HEIGHT + grid.card_margin))
     
     loop()
     
@@ -307,29 +308,53 @@ class SetCard(VisualCard):
         return f"SetCard({self.kaart})"
     
 class ScoreCard(VisualCard):
-    FONT = None # wordt in de initialize() geinitializeerd
-    FONT_SIZE = 72
+    # worden in initialize() aangemaakt:
+    SCORE_FONT = None
+    NAME_FONT = None
     
-    def __init__(self, position, colour, name):
+    SCORE_FONT_SIZE = 72
+    NAME_FONT_SIZE = 36
+    
+    def __init__(self, position, player):
         super().__init__(position, "blank")
         
-        self.colour = colour
-        self.name = name
+        self.player = player
+        
+        self.z_index = 10
         
     def render(self, surface):
         super().render(surface)
         
-        score_text_surface = ScoreCard.FONT.render("32", True, self.colour)
+        score_text_surface = ScoreCard.SCORE_FONT.render(str(self.player.score), True, self.player.colour)
         score_text_rect = score_text_surface.get_rect()
         
-        score_text_center_x = self.position[0] + VisualCard.WIDTH // 2
-        score_text_center_y = self.position[1] + VisualCard.HEIGHT // 3 * 2
+        score_text_center_x = self.position[0] + self.WIDTH // 2
+        score_text_center_y = self.position[1] + self.HEIGHT // 3 * 2
         score_text_x = score_text_center_x - score_text_rect.width // 2
         score_text_y = score_text_center_y - score_text_rect.height // 2
         
         surface.blit(score_text_surface, (score_text_x, score_text_y))
+        
+        name_text_surface = ScoreCard.NAME_FONT.render(self.player.name, True, self.player.colour)
+        name_text_rect = name_text_surface.get_rect()
+        
+        name_text_center_x = self.position[0] + self.WIDTH // 2
+        name_text_center_y = self.position[1] + self.HEIGHT // 3
+        name_text_x = name_text_center_x - name_text_rect.width // 2
+        name_text_y = name_text_center_y - name_text_rect.height // 2
+        
+        surface.blit(name_text_surface, (name_text_x, name_text_y))
 
 # === OTHER OBJECTS ===
+class Player:
+    def __init__(self, name, colour, score_card_position):
+        self.name = name
+        self.colour = colour
+        self.score = 0
+        
+        self.score_card = ScoreCard(score_card_position, self)
+        game_objects.append(self.score_card)
+
 @dataclass
 class Layer:
     z_index : int
