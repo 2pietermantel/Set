@@ -9,7 +9,7 @@ SCREEN_HEIGHT = 720 # pixels
 
 FPS = 60
 
-SECONDS_TO_CHOOSE_SET = 30
+SECONDS_TO_CHOOSE_SET = 1
 # === Enums ===
 class GamePhase(Enum):
     GAME_START = 0
@@ -99,7 +99,7 @@ def vind1Set(kaarten):
     combinaties = vindSets(kaarten)
     if combinaties == []:
         return False
-    return combinaties[0]
+    return True
 
 # === ALLES RONDOM HET GUI ===
 def initialize():
@@ -182,6 +182,12 @@ def tick():
                     card.wrong_blink_tick = 0
                     card.selected = False
                 selected_cards = []
+        if total_ticks_since_new_card == SECONDS_TO_CHOOSE_SET * FPS:
+            sets = vindSets(grid.kaarten)
+            set_exists = vind1Set(grid.kaarten)
+            if set_exists:
+                chosen_set = sets[0]
+                
     
 def render(canvas):
     # Make all layers transparent
@@ -469,6 +475,7 @@ class Grid:
         self.trekstapel = VisualCard(self.trekstapel_positie)
         self.trekstapel.z_index = -10
         game_objects.append(self.trekstapel)
+        self.kaarten = self.kaarten_op_stapel[:12]
         
         self.aflegstapel = VisualCard(self.aflegstapel_positie, filename = "lege_aflegstapel")
         game_objects.append(self.aflegstapel)
