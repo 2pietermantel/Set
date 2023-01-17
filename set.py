@@ -9,6 +9,7 @@ SCREEN_HEIGHT = 720 # pixels
 
 FPS = 60
 
+SECONDS_TO_CHOOSE_SET = 30
 # === Enums ===
 class GamePhase(Enum):
     GAME_START = 0
@@ -17,8 +18,10 @@ class GamePhase(Enum):
 class Colours(Enum):
     # (R, G, B) of (R, G, B, A)
     BACKGROUND = (221, 221, 221),
-    TEXT = (0,0,0),
-    TRANSPARENT = (0, 0, 0, 0)
+    TRANSPARENT = (0, 0, 0, 0),
+    
+    PLAYER = (255, 0, 0),
+    AI = (0, 255, 0)
 
 # === PROGRAMMEERVARIABELEN ===
 # game_objects zijn de objects met de functies tick() en render(surface).
@@ -28,11 +31,14 @@ game_objects = []
 # Objects met een mouseDown(position) en mouseUp(position).
 mouse_listeners = []
 
+selected_cards = []
+
 layers = []
 
 total_ticks = 0
 total_ticks_since_phase_change = 0
 game_phase = GamePhase.GAME_START
+total_ticks_since_new_card = 0
 
 # === ALLES RONDOM DE LOGICA ACHTER SET ===
 @dataclass(frozen = True)
@@ -103,7 +109,7 @@ def initialize():
     pygame.font.init()
     ScoreCard.FONT = pygame.font.SysFont("Arial", ScoreCard.FONT_SIZE, bold = True)
     
-    sc = ScoreCard((20, 20))
+    sc = ScoreCard((20, 20), Colours.PLAYER.value, "JIJ")
     game_objects.append(sc)
     
     grid = Grid(20)
@@ -111,7 +117,7 @@ def initialize():
     loop()
     
 def loop():
-    global total_ticks, total_ticks_since_phase_change
+    global total_ticks, total_ticks_since_phase_change, total_ticks_since_new_card
     
     # Initialize screen
     clock = pygame.time.Clock()
@@ -145,6 +151,9 @@ def loop():
         pygame.display.update()
         
         total_ticks += 1
+        if game_phase == GamePhase.FINDING_SETS:
+            total_ticks_since_new_card += 1
+            
         total_ticks_since_phase_change += 1
         
         if game_phase != current_game_phase:
@@ -156,10 +165,22 @@ def loop():
     pygame.quit()
     
 def tick():
+    global selected_cards
     for game_object in game_objects:
         game_object.tick()
         
     grid.tick()
+    
+    if game_phase == GamePhase.FINDING_SETS:
+        if len(selected_cards) == 3:
+            kaarten = [card.kaart for card in selected_cards]
+            if isEenSet(kaarten):
+                pass
+            else:
+                for card in selected_cards:
+                    card.wrong_blink_tick = 0
+                    card.selected = False
+                selected_cards = []
     
 def render(canvas):
     # Make all layers transparent
@@ -240,6 +261,8 @@ class SetCard(VisualCard):
         
         super().__init__(position, filename)
         
+        self.kaart = card
+        
         self.selection_handler = SelectionHandler(self)
         self.selected = False
         self.selection_box_texture = ImageLoader.loadImage("kaarten\\selection_box.png")
@@ -268,33 +291,43 @@ class SetCard(VisualCard):
                 surface.blit(self.wrong_blink_layer_texture, self.position)
     
     def click(self, position):
-        self.selected = not self.selected
-        self.wrong_blink_tick = 0
-        SoundPlayer.playSound("audio\\wrong_sound.wav")
+        if game_phase == GamePhase.FINDING_SETS:
+            self.selected = not self.selected
+            if self.selected:
+                selected_cards.append(self)
+            else:
+                selected_cards.remove(self)
+            print(selected_cards)
     
     def isMouseInside(self, position):
         bounding_box = pygame.Rect(self.position, (VisualCard.WIDTH, VisualCard.HEIGHT))
         return bounding_box.collidepoint(position)
     
+    def __repr__(self):
+        return f"SetCard({self.kaart})"
+    
 class ScoreCard(VisualCard):
     FONT = None # wordt in de initialize() geinitializeerd
     FONT_SIZE = 72
     
-    def __init__(self, position):
+    def __init__(self, position, colour, name):
         super().__init__(position, "blank")
+        
+        self.colour = colour
+        self.name = name
         
     def render(self, surface):
         super().render(surface)
         
-        text_surface = ScoreCard.FONT.render("32", True, Colours.TEXT.value)
-        rect = text_surface.get_rect()
+        score_text_surface = ScoreCard.FONT.render("32", True, self.colour)
+        score_text_rect = score_text_surface.get_rect()
         
-        center_x = self.position[0] + VisualCard.WIDTH // 2
-        center_y = self.position[1] + VisualCard.HEIGHT // 2
-        text_x = center_x - rect.width // 2
-        text_y = center_y - rect.height // 2
+        score_text_center_x = self.position[0] + VisualCard.WIDTH // 2
+        score_text_center_y = self.position[1] + VisualCard.HEIGHT // 3 * 2
+        score_text_x = score_text_center_x - score_text_rect.width // 2
+        score_text_y = score_text_center_y - score_text_rect.height // 2
         
-        surface.blit(text_surface, (text_x, text_y))
+        surface.blit(score_text_surface, (score_text_x, score_text_y))
 
 # === OTHER OBJECTS ===
 @dataclass
@@ -306,25 +339,25 @@ class Layer:
 class ImageLoader:
     images = {}
     
-    @staticmethod
-    def loadImage(filename):
-        if filename in ImageLoader.images:
-            return ImageLoader.images[filename]
+    @classmethod
+    def loadImage(cls, filename):
+        if filename in cls.images:
+            return cls.images[filename]
         
         image = pygame.image.load(filename)
-        ImageLoader.images[filename] = image
+        cls.images[filename] = image
         return image
 
 class SoundPlayer:
     sounds = {}
     
-    @staticmethod
-    def playSound(filename):
-        if filename in SoundPlayer.sounds:
-            sound = SoundPlayer.sounds[filename]
+    @classmethod
+    def playSound(cls, filename):
+        if filename in cls.sounds:
+            sound = cls.sounds[filename]
         else:
             sound = pygame.mixer.Sound(filename)
-            SoundPlayer.sounds[filename] = sound
+            cls.sounds[filename] = sound
             
         pygame.mixer.Sound.play(sound)
 
@@ -421,13 +454,12 @@ class Grid:
         card.glide(self.posities[lege_plek])
         
     def tick(self):
-        global game_phase, total_ticks_since_phase_change
+        global game_phase, total_ticks_since_phase_change, total_ticks_since_new_card
         
         if game_phase == GamePhase.GAME_START:
             # check if game start is finished
             if total_ticks_since_phase_change >= 120:
                 game_phase = GamePhase.FINDING_SETS
-                total_ticks_since_phase_change = 0
                 
         if game_phase == GamePhase.GAME_START:
             # add card
