@@ -268,12 +268,13 @@ class SetCard(VisualCard):
     wrong_blink_cycle_ticks = 2 * wrong_blink_ticks # the amount of ticks it is displayed AND not displayed
     wrong_blink_total_ticks = wrong_blink_cycle_ticks * WRONG_BLINKS
     
-    def __init__(self, position = (0, 0), card = Kaart(1, 1, 1, 1)):
+    def __init__(self, position_index, card):
         # Get the filename by getting the values as a list, converting those values to strings and joining it together
         filename = "".join([str(x) for x in card.getValues()])
         
-        super().__init__(position, filename)
+        super().__init__(grid.posities[position_index], filename)
         
+        self.position_index = position_index
         self.kaart = card
         
         self.selection_handler = SelectionHandler(self)
@@ -283,6 +284,8 @@ class SetCard(VisualCard):
         self.wrong_blink_layer_texture = ImageLoader.loadImage("kaarten\\wrong_blink_layer.png")
         self.wrong_blink_tick = -1
         
+        self.chosen = False
+        
     def tick(self):
         super().tick()
         
@@ -291,6 +294,11 @@ class SetCard(VisualCard):
             self.wrong_blink_tick += 1
             if self.wrong_blink_tick >= SetCard.wrong_blink_total_ticks:
                 self.wrong_blink_tick = -1
+                
+        # delete card when correctly chosen
+        if self.chosen and not self.gliding:
+            game_objects.remove(self)
+            grid.cards.remove(self)
         
     def render(self, surface):
         # render selection
@@ -476,8 +484,6 @@ class Grid:
         
         random.shuffle(self.kaarten_op_stapel)
         
-        self.starting_card_placement = 0
-        
         self.trekstapel = VisualCard(self.trekstapel_positie)
         self.trekstapel.z_index = -10
         game_objects.append(self.trekstapel)
@@ -486,11 +492,13 @@ class Grid:
         self.aflegstapel = VisualCard(self.aflegstapel_positie, filename = "lege_aflegstapel")
         game_objects.append(self.aflegstapel)
 
-    def plaatsKaart(self, kaart, lege_plek):
-        card = SetCard(self.trekstapel_positie, kaart)
+    def plaatsKaart(self, kaart, lege_plek_index):
+        card = SetCard(lege_plek_index, kaart)
+        card.position = self.trekstapel_positie
+        
         game_objects.append(card)
         self.cards.append(card)
-        card.glide(self.posities[lege_plek])
+        card.glide(self.posities[lege_plek_index])
         
     def tick(self):
         global game_phase, total_ticks_since_phase_change, total_ticks_since_new_card
@@ -504,8 +512,7 @@ class Grid:
             # add card
             if total_ticks_since_phase_change % 10 == 0:
                 kaart = self.kaarten_op_stapel.pop()
-                self.plaatsKaart(kaart, self.starting_card_placement)
-                self.starting_card_placement += 1
+                self.plaatsKaart(kaart, total_ticks_since_phase_change // 10)
                 
     def getKaarten(self):
         return [card.kaart for card in self.cards]
