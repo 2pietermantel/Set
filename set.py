@@ -182,9 +182,10 @@ def tick():
                 you.score += 1
                 grid.deselectAllCards()
             else:
-                grid.deselectAllCards()
                 for card in selected_cards:
                     card.wrong_blink_tick = 0
+                SoundPlayer.playSound("audio\\wrong_sound.wav")
+                grid.deselectAllCards()
 
         if total_ticks_since_new_card == SECONDS_TO_CHOOSE_SET * FPS:
             sets = vindSets(grid.getKaarten())
@@ -325,7 +326,6 @@ class SetCard(VisualCard):
                 selected_cards.append(self)
             else:
                 selected_cards.remove(self)
-            print(selected_cards)
     
     def isMouseInside(self, position):
         bounding_box = pygame.Rect(self.position, (VisualCard.WIDTH, VisualCard.HEIGHT))
