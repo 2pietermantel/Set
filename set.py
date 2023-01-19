@@ -171,7 +171,7 @@ def loop():
     pygame.quit()
     
 def tick():
-    global selected_cards, kaarten_gejat, ticks_since_gejat, ticks_since_doorschuiven, total_ticks_since_new_card, allowed, stapel_op
+    global selected_cards, ticks_since_gejat, ticks_since_doorschuiven, total_ticks_since_new_card, allowed, stapel_op
     for game_object in game_objects:
         game_object.tick()
         
@@ -183,6 +183,8 @@ def tick():
             ticks_since_gejat = -1
             if not stapel_op:
                 ticks_since_doorschuiven = 1
+            else:
+                total_ticks_since_new_card = 0
         ticks_since_gejat += 1
 
     if ticks_since_doorschuiven > 0:
@@ -209,7 +211,7 @@ def tick():
                     card.wrong_blink_tick = 0
                 SoundPlayer.playSound("audio\\wrong_sound.wav")
                 grid.deselectAllCards()
-
+                
         if total_ticks_since_new_card == SECONDS_TO_CHOOSE_SET * FPS and allowed == True:
             sets = vindSets(grid.getKaarten())
             set_exists = vind1Set(grid.getKaarten())
@@ -226,23 +228,21 @@ def tick():
                 pc.score += 1
                 ticks_since_gejat = 1
             else:
-                pass
-                #setCards = []
-                #for game_object in game_objects:
-                #    if type(game_object) is SetCard:
-                #        setCards.append(game_object)
-                #for i in range(12):
-                #    for card in setCards:
-                #        if game_object.position == grid.posities[0]:
-                #            game_object.chosen = True
-                #            game_object.glide([grid.aflegstapel_positie])
-                #        elif game_object.position == grid.posities[1]:
-                #            game_object.chosen = True
-                #            game_object.glide([grid.aflegstapel_positie])
-                #        elif game_object.position == grid.posities[2]:
-                #            game_object.chosen = True
-                #            game_object.glide([grid.aflegstapel_positie])
-                #ticks_since_gejat = FPS + 1
+                setCards = []
+                for game_object in game_objects:
+                    if type(game_object) is SetCard:
+                        setCards.append(game_object)
+                for card in setCards:
+                    if card.position_index == 0:
+                        card.chosen = True
+                        card.glide(grid.aflegstapel_positie)
+                    elif card.position_index == 1:
+                        card.chosen = True
+                        card.glide(grid.aflegstapel_positie)
+                    elif card.position_index == 2:
+                        card.chosen = True
+                        card.glide(grid.aflegstapel_positie)
+                ticks_since_gejat = 1
                 
 def render(canvas):
     # Make all layers transparent
