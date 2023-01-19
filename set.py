@@ -9,7 +9,12 @@ SCREEN_HEIGHT = 720 # pixels
 
 FPS = 60
 
-SECONDS_TO_CHOOSE_SET = 30
+ticks_since_gejat = 0
+ticks_since_doorschuiven = 0
+allowed = True
+stapel_op = False
+
+SECONDS_TO_CHOOSE_SET = 1
 # === Enums ===
 class GamePhase(Enum):
     GAME_START = 0
@@ -166,11 +171,27 @@ def loop():
     pygame.quit()
     
 def tick():
-    global selected_cards
+    global selected_cards, kaarten_gejat, ticks_since_gejat, ticks_since_doorschuiven, total_ticks_since_new_card, allowed, stapel_op
     for game_object in game_objects:
         game_object.tick()
         
     grid.tick()
+    
+    if ticks_since_gejat > 0:
+        if ticks_since_gejat > FPS:
+            grid.doorschuiven()
+            ticks_since_gejat = -1
+            if not stapel_op:
+                ticks_since_doorschuiven = 1
+        ticks_since_gejat += 1
+
+    if ticks_since_doorschuiven > 0:
+        if ticks_since_doorschuiven > FPS:
+            grid.nieuweKaarten()
+            ticks_since_doorschuiven = -1
+            total_ticks_since_new_card = 0
+            allowed = True
+        ticks_since_doorschuiven += 1
     
     if game_phase == GamePhase.FINDING_SETS:
         if len(selected_cards) == 3:
@@ -180,6 +201,8 @@ def tick():
                     card.glide(you.score_card.position)
                     card.chosen = True
                 you.score += 1
+                ticks_since_gejat = 1
+                allowed = False
                 grid.deselectAllCards()
             else:
                 for card in selected_cards:
@@ -187,7 +210,7 @@ def tick():
                 SoundPlayer.playSound("audio\\wrong_sound.wav")
                 grid.deselectAllCards()
 
-        if total_ticks_since_new_card == SECONDS_TO_CHOOSE_SET * FPS:
+        if total_ticks_since_new_card == SECONDS_TO_CHOOSE_SET * FPS and allowed == True:
             sets = vindSets(grid.getKaarten())
             set_exists = vind1Set(grid.getKaarten())
             if set_exists:
@@ -201,7 +224,26 @@ def tick():
                     card.glide(pc.score_card.position)
                     card.chosen = True
                 pc.score += 1
-    
+                ticks_since_gejat = 1
+            else:
+                pass
+                #setCards = []
+                #for game_object in game_objects:
+                #    if type(game_object) is SetCard:
+                #        setCards.append(game_object)
+                #for i in range(12):
+                #    for card in setCards:
+                #        if game_object.position == grid.posities[0]:
+                #            game_object.chosen = True
+                #            game_object.glide([grid.aflegstapel_positie])
+                #        elif game_object.position == grid.posities[1]:
+                #            game_object.chosen = True
+                #            game_object.glide([grid.aflegstapel_positie])
+                #        elif game_object.position == grid.posities[2]:
+                #            game_object.chosen = True
+                #            game_object.glide([grid.aflegstapel_positie])
+                #ticks_since_gejat = FPS + 1
+                
 def render(canvas):
     # Make all layers transparent
     for layer in layers:
@@ -477,7 +519,7 @@ class Grid:
             
         self.trekstapel_positie = (temp_x + VisualCard.WIDTH + self.card_margin, temp_y - (VisualCard.HEIGHT + 2 * self.card_margin))
         self.aflegstapel_positie = (temp_x + VisualCard.WIDTH + self.card_margin, temp_y + self.card_margin)
-    
+        
     def __init__(self, card_margin):
         self.card_margin = card_margin
         self.initializePositions()
@@ -529,7 +571,37 @@ class Grid:
         for card in selected_cards:
             card.selected = False
         selected_cards = []
-
+        
+    def doorschuiven(self):
+        lege_plekken = [i for i in range(12)]
+        setCards = []
+        for game_object in game_objects:
+            if type(game_object) is SetCard:
+                setCards.append(game_object)
+        for i in range(12):
+            for card in setCards:
+                if card.position_index == i:
+                    lege_plekken.remove(i)
+        for card in setCards:
+            for i in range(12):
+                if i in lege_plekken:
+                    if i < card.position_index:
+                        card.glide(self.posities[i])
+                        lege_plekken.append(card.position_index)
+                        card.position_index = i
+                        lege_plekken.remove(i)
+    
+    def nieuweKaarten(self):
+        global stapel_op
+        for i in range(9,12):
+            if len(self.kaarten_op_stapel) > 0:
+                card = self.kaarten_op_stapel.pop()
+                self.plaatsKaart(card, i)
+            else:
+                stapel_op = True
+                    
+class Menu:
+    pass
 # Start het spel
 if __name__ == "__main__":
     initialize()
