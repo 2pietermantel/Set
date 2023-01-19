@@ -242,6 +242,7 @@ def tick():
                     elif card.position_index == 2:
                         card.chosen = True
                         card.glide(grid.aflegstapel_positie)
+                grid.deselectAllCards()
                 ticks_since_gejat = 1
                 
 def render(canvas):
