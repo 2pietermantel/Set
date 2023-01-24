@@ -51,7 +51,6 @@ layers = []
 total_ticks = 0
 total_ticks_since_phase_change = 0
 game_phase = GamePhase.MENU
-total_ticks_since_new_card = 0
 pc_picking_ticks = int(PC_PICKING_TIME * FPS)
 
 # === ALLES RONDOM DE LOGICA ACHTER SET ===
@@ -168,9 +167,6 @@ def loop():
         pygame.display.update()
         
         total_ticks += 1
-        if game_phase == GamePhase.FINDING_SETS:
-            total_ticks_since_new_card += 1
-            
         total_ticks_since_phase_change += 1
         
         if game_phase != current_game_phase:
@@ -182,8 +178,7 @@ def loop():
     pygame.quit()
     
 def tick():
-    global selected_cards, total_ticks_since_new_card, stapel_op, game_phase, pc_set
-    print(game_phase)
+    global selected_cards, stapel_op, game_phase, pc_set
     for game_object in game_objects:
         game_object.tick()
         
