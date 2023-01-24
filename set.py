@@ -14,15 +14,19 @@ ticks_since_doorschuiven = 0
 allowed = True
 stapel_op = False
 
-SECONDS_TO_CHOOSE_SET = 30
+SECONDS_TO_CHOOSE_SET = 1
+SECONDS_BEFORE_CAP_SET = 5
+PC_PICKING_TIME = 0.5 # seconds
 # === Enums ===
 class GamePhase(Enum):
     MENU = 0
     GAME_START = 1
     FINDING_SETS = 2
-    MOVING_CARDS = 3
-    PC_PICKING_CARDS = 4
-    AFLEGGEN = 5
+    COLLECTING_SET = 3
+    DOORSCHUIVEN = 4
+    AANVULLEN = 5
+    PC_PICKING_CARDS = 6
+    AFLEGGEN = 7
     
 class Colours(Enum):
     # (R, G, B) of (R, G, B, A)
@@ -48,6 +52,7 @@ total_ticks = 0
 total_ticks_since_phase_change = 0
 game_phase = GamePhase.GAME_START
 total_ticks_since_new_card = 0
+pc_picking_ticks = int(PC_PICKING_TIME * FPS)
 
 # === ALLES RONDOM DE LOGICA ACHTER SET ===
 @dataclass(frozen = True)
@@ -104,7 +109,7 @@ def vindSets(kaarten):
                     combinaties.append([kaart1,kaart2,kaart3])
     return combinaties
 
-def vind1Set(kaarten):
+def isErEenSet(kaarten):
     combinaties = vindSets(kaarten)
     if combinaties == []:
         return False
@@ -175,33 +180,69 @@ def loop():
     pygame.quit()
     
 def tick():
-    global selected_cards, ticks_since_gejat, ticks_since_doorschuiven, total_ticks_since_new_card, allowed, stapel_op
+    global selected_cards, total_ticks_since_new_card, stapel_op, game_phase, pc_set
+    print(game_phase)
     for game_object in game_objects:
         game_object.tick()
         
     grid.tick()
     
-    if ticks_since_gejat > 0:
-        if ticks_since_gejat > FPS:
+    if game_phase == GamePhase.AANVULLEN:
+        if total_ticks_since_phase_change >= 3 * Grid.ticks_tussen_uitdelen:
+            game_phase = GamePhase.FINDING_SETS
+            return
+            
+        if total_ticks_since_phase_change % Grid.ticks_tussen_uitdelen == 0:
+            grid.nieuweKaart()
+    
+    if game_phase == GamePhase.DOORSCHUIVEN:
+        if total_ticks_since_phase_change == 0:
             grid.doorschuiven()
-            ticks_since_gejat = -1
-            if not stapel_op:
-                ticks_since_doorschuiven = 1
+        if total_ticks_since_phase_change == GlideAnimation.total_glide_ticks:
+            if stapel_op:
+                game_phase = GamePhase.FINDING_SETS
+                return
             else:
-                total_ticks_since_new_card = 0
-        ticks_since_gejat += 1
-
-    if ticks_since_doorschuiven > 0:
-        if ticks_since_doorschuiven > FPS:
-            grid.nieuweKaarten()
-            ticks_since_doorschuiven = -1
-            total_ticks_since_new_card = 0
-            allowed = True
-        ticks_since_doorschuiven += 1
+                game_phase = GamePhase.AANVULLEN
+                return
         
-    if game_phase == GamePhase.MOVING_CARDS:
+    if game_phase == GamePhase.COLLECTING_SET:
         # start the moving of cards
-        pass
+        if total_ticks_since_phase_change == GlideAnimation.total_glide_ticks:
+            game_phase = GamePhase.DOORSCHUIVEN
+            return
+            
+    if game_phase == GamePhase.PC_PICKING_CARDS:
+        if total_ticks_since_phase_change >= 3 * pc_picking_ticks:
+            for card in grid.cards:
+                if card.kaart in pc_set:
+                    card.selected = False
+                    card.chosen = True
+                    card.glide(pc.score_card.position)
+            pc.score += 1
+            game_phase = GamePhase.COLLECTING_SET
+            return
+        
+        if total_ticks_since_phase_change % pc_picking_ticks == 0:
+            index = total_ticks_since_phase_change // pc_picking_ticks
+            kaart = pc_set[index]
+            for card in grid.cards:
+                if card.kaart == kaart:
+                    card.selected = True
+                    
+    if game_phase == GamePhase.AFLEGGEN:
+        if total_ticks_since_phase_change < 3 * Grid.ticks_tussen_uitdelen:
+            if total_ticks_since_phase_change % Grid.ticks_tussen_uitdelen == 0:
+                index = int(total_ticks_since_phase_change // Grid.ticks_tussen_uitdelen)
+                grid.cards[index].chosen = True
+                grid.cards[index].glide(grid.aflegstapel_positie)
+                
+        if total_ticks_since_phase_change == GlideAnimation.total_glide_ticks:
+            grid.aflegstapel.texture = ImageLoader.loadImage("kaarten\\blank.gif")
+            
+        if total_ticks_since_phase_change >= 3 * Grid.ticks_tussen_uitdelen + GlideAnimation.total_glide_ticks:
+            game_phase = GamePhase.DOORSCHUIVEN
+            return
     
     if game_phase == GamePhase.FINDING_SETS:
         if len(selected_cards) == 3:
@@ -211,30 +252,24 @@ def tick():
                     card.glide(you.score_card.position)
                     card.chosen = True
                 you.score += 1
-                ticks_since_gejat = 1
-                allowed = False
                 grid.deselectAllCards()
+                game_phase = GamePhase.COLLECTING_SET
+                return
             else:
                 for card in selected_cards:
                     card.wrong_blink_tick = 0
                 SoundPlayer.playSound("audio\\wrong_sound.wav")
                 grid.deselectAllCards()
                 
-        if total_ticks_since_new_card == SECONDS_TO_CHOOSE_SET * FPS and allowed == True:
+        if total_ticks_since_phase_change == SECONDS_TO_CHOOSE_SET * FPS:
             sets = vindSets(grid.getKaarten())
-            set_exists = vind1Set(grid.getKaarten())
+            set_exists = isErEenSet(grid.getKaarten())
             if set_exists:
                 grid.deselectAllCards()
-                chosen_set = sets[0]
-                chosen_set_cards = []
-                for card in grid.cards:
-                    if card.kaart in chosen_set:
-                        chosen_set_cards.append(card)
-                for card in chosen_set_cards:
-                    card.glide(pc.score_card.position)
-                    card.chosen = True
-                pc.score += 1
-                ticks_since_gejat = 1
+                pc_set = sets[0]
+                game_phase = GamePhase.PC_PICKING_CARDS
+                return
+            '''
             else:
                 setCards = []
                 for game_object in game_objects:
@@ -251,7 +286,12 @@ def tick():
                         card.chosen = True
                         card.glide(grid.aflegstapel_positie)
                 grid.deselectAllCards()
-                ticks_since_gejat = 1
+            '''
+                
+        if total_ticks_since_phase_change >= SECONDS_BEFORE_CAP_SET * FPS:
+            grid.deselectAllCards()
+            game_phase = GamePhase.AFLEGGEN
+            return
                 
 def render(canvas):
     # Make all layers transparent
@@ -513,6 +553,10 @@ class SelectionHandler:
         self.mouse_down_on_object = False
 
 class Grid:
+    TIJD_TUSSEN_UITDELEN = 0.2 # seconds
+    
+    ticks_tussen_uitdelen = TIJD_TUSSEN_UITDELEN * FPS
+    
     def initializePositions(self):
         self.posities = []
         temp_x = (SCREEN_WIDTH - 7 * VisualCard.WIDTH - 6 * self.card_margin) // 2
@@ -602,12 +646,28 @@ class Grid:
     
     def nieuweKaarten(self):
         global stapel_op
+        
         for i in range(9,12):
             if len(self.kaarten_op_stapel) > 0:
                 card = self.kaarten_op_stapel.pop()
                 self.plaatsKaart(card, i)
             else:
                 stapel_op = True
+                
+    def nieuweKaart(self):
+        global stapel_op
+        
+        lege_plek = self.legePlekken()[0]
+        kaart = self.kaarten_op_stapel.pop()
+        self.plaatsKaart(kaart, lege_plek)
+        if len(self.kaarten_op_stapel) == 0:
+            stapel_op = True
+                
+    def legePlekken(self):
+        lege_plekken = [i for i in range(12)]
+        for card in self.cards:
+            lege_plekken.remove(card.position_index)
+        return lege_plekken
                     
 class Menu:
     pass
