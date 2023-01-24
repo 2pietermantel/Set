@@ -50,7 +50,7 @@ layers = []
 
 total_ticks = 0
 total_ticks_since_phase_change = 0
-game_phase = GamePhase.GAME_START
+game_phase = GamePhase.MENU
 total_ticks_since_new_card = 0
 pc_picking_ticks = int(PC_PICKING_TIME * FPS)
 
@@ -117,14 +117,17 @@ def isErEenSet(kaarten):
 
 # === ALLES RONDOM HET GUI ===
 def initialize():
-    global grid, you, pc
+    global menu, grid, you, pc
     pygame.init()
     
     pygame.font.init()
     ScoreCard.SCORE_FONT = pygame.font.SysFont("Arial", ScoreCard.SCORE_FONT_SIZE, bold = True)
     ScoreCard.NAME_FONT = pygame.font.SysFont("Arial", ScoreCard.NAME_FONT_SIZE, bold = True)
-    
+
     grid = Grid(20)
+    
+    Menu.initialize()
+    menu = Menu()
     
     you = Player("YOU", Colours.YOU.value,  (20, 20))
     pc = Player("PC", Colours.PC.value, (20, 20 + VisualCard.HEIGHT + grid.card_margin))
@@ -269,24 +272,6 @@ def tick():
                 pc_set = sets[0]
                 game_phase = GamePhase.PC_PICKING_CARDS
                 return
-            '''
-            else:
-                setCards = []
-                for game_object in game_objects:
-                    if type(game_object) is SetCard:
-                        setCards.append(game_object)
-                for card in setCards:
-                    if card.position_index == 0:
-                        card.chosen = True
-                        card.glide(grid.aflegstapel_positie)
-                    elif card.position_index == 1:
-                        card.chosen = True
-                        card.glide(grid.aflegstapel_positie)
-                    elif card.position_index == 2:
-                        card.chosen = True
-                        card.glide(grid.aflegstapel_positie)
-                grid.deselectAllCards()
-            '''
                 
         if total_ticks_since_phase_change >= SECONDS_BEFORE_CAP_SET * FPS:
             grid.deselectAllCards()
@@ -377,9 +362,9 @@ class SetCard(VisualCard):
         
         self.selection_handler = SelectionHandler(self)
         self.selected = False
-        self.selection_box_texture = ImageLoader.loadImage("kaarten\\selection_box.png")
+        self.selection_box_texture = ImageLoader.loadImage("overige afbeeldingen\\selection_box.png")
         
-        self.wrong_blink_layer_texture = ImageLoader.loadImage("kaarten\\wrong_blink_layer.png")
+        self.wrong_blink_layer_texture = ImageLoader.loadImage("overige afbeeldingen\\wrong_blink_layer.png")
         self.wrong_blink_tick = -1
         
         self.chosen = False
@@ -670,7 +655,66 @@ class Grid:
         return lege_plekken
                     
 class Menu:
-    pass
+    global SCREEN_WIDTH, SCREEN_HEIGHT
+    
+    @classmethod
+    def initialize(cls):
+        cls.menu_width = VisualCard.HEIGHT + 2*grid.card_margin
+        cls.menu_height = 3*VisualCard.WIDTH + 4*grid.card_margin
+        cls.positie = ((SCREEN_WIDTH - cls.menu_width) // 2, (SCREEN_HEIGHT - cls.menu_height) // 2)
+        cls.easy_position = (cls.positie[0]+grid.card_margin, cls.positie[1]+grid.card_margin)
+        cls.normal_position = (cls.positie[0]+grid.card_margin, cls.easy_position[1]+grid.card_margin+VisualCard.WIDTH)
+        cls.hard_position = (cls.positie[0]+grid.card_margin, cls.normal_position[1]+grid.card_margin+VisualCard.WIDTH)
+    
+    def __init__(self, filename = 'menu'):
+        self.position = Menu.positie
+        self.texture = ImageLoader.loadImage(f"overige afbeeldingen\\{filename}.png")
+        
+        self.easy = Button(self.easy_position, 'easy')
+        self.normal = Button(self.normal_position, 'normal')
+        self.hard = Button(self.hard_position, 'hard')
+        
+        self.z_index = 20
+        
+        game_objects.append(self)
+        
+    def render(self, surface):
+        if game_phase == GamePhase.MENU:
+            surface.blit(self.texture, self.position)
+    
+    def tick(self):
+        pass
+        
+class Button:
+    def __init__(self, position = (0,0), filename = 'blank'):
+        self.position = position
+        
+        self.texture = ImageLoader.loadImage(f"overige afbeeldingen\\{filename}.png")
+        
+        self.selection_handler = SelectionHandler(self)
+        
+        self.selected = False
+        
+        self.z_index = 30
+        
+        game_objects.append(self)
+    
+    def render(self, surface):
+        if game_phase == GamePhase.MENU:
+            surface.blit(self.texture, self.position)
+        
+    def tick(self):
+        pass
+    
+    def click(self, position):
+        global game_phase
+        if game_phase == GamePhase.MENU:
+            game_phase = GamePhase.GAME_START
+    
+    def isMouseInside(self, position):
+        bounding_box = pygame.Rect(self.position, (VisualCard.HEIGHT, VisualCard.WIDTH))
+        return bounding_box.collidepoint(position)
+        
 # Start het spel
 if __name__ == "__main__":
     initialize()
