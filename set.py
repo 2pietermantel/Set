@@ -14,18 +14,22 @@ ticks_since_doorschuiven = 0
 allowed = True
 stapel_op = False
 
-SECONDS_TO_CHOOSE_SET = 1
+SECONDS_TO_CHOOSE_SET = 30
 # === Enums ===
 class GamePhase(Enum):
-    GAME_START = 0
-    FINDING_SETS = 1
+    MENU = 0
+    GAME_START = 1
+    FINDING_SETS = 2
+    MOVING_CARDS = 3
+    PC_PICKING_CARDS = 4
+    AFLEGGEN = 5
     
 class Colours(Enum):
     # (R, G, B) of (R, G, B, A)
-    BACKGROUND = (221, 221, 221),
-    TRANSPARENT = (0, 0, 0, 0),
+    BACKGROUND = (221, 221, 221)
+    TRANSPARENT = (0, 0, 0, 0)
     
-    YOU = (255, 0, 0),
+    YOU = (255, 0, 0)
     PC = (0, 0, 255)
 
 # === PROGRAMMEERVARIABELEN ===
@@ -194,6 +198,10 @@ def tick():
             total_ticks_since_new_card = 0
             allowed = True
         ticks_since_doorschuiven += 1
+        
+    if game_phase == GamePhase.MOVING_CARDS:
+        # start the moving of cards
+        pass
     
     if game_phase == GamePhase.FINDING_SETS:
         if len(selected_cards) == 3:
