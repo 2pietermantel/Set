@@ -14,7 +14,7 @@ ticks_since_doorschuiven = 0
 allowed = True
 stapel_op = False
 
-SECONDS_TO_CHOOSE_SET = 1
+SECONDS_TO_CHOOSE_SET = 15
 SECONDS_BEFORE_CAP_SET = 5
 PC_PICKING_TIME = 0.5 # seconds
 # === Enums ===
@@ -145,6 +145,7 @@ def loop():
     current_game_phase = game_phase
     running = True
     while running:
+        tick()
         for event in pygame.event.get():
             # Check if the game should quit
             if event.type == pygame.QUIT:
@@ -158,8 +159,6 @@ def loop():
             if event.type == pygame.MOUSEBUTTONUP:
                 for mouse_listener in mouse_listeners:
                     mouse_listener.mouseUp(pygame.mouse.get_pos())
-                
-        tick()
         
         # Rendering
         canvas.fill(Colours.BACKGROUND.value)
@@ -236,7 +235,7 @@ def tick():
     if game_phase == GamePhase.AFLEGGEN:
         if total_ticks_since_phase_change < 3 * Grid.ticks_tussen_uitdelen:
             if total_ticks_since_phase_change % Grid.ticks_tussen_uitdelen == 0:
-                index = int(total_ticks_since_phase_change // Grid.ticks_tussen_uitdelen)
+                index = total_ticks_since_phase_change // Grid.ticks_tussen_uitdelen
                 grid.cards[index].chosen = True
                 grid.cards[index].glide(grid.aflegstapel_positie)
                 
@@ -274,9 +273,11 @@ def tick():
                 return
                 
         if total_ticks_since_phase_change >= SECONDS_BEFORE_CAP_SET * FPS:
-            grid.deselectAllCards()
-            game_phase = GamePhase.AFLEGGEN
-            return
+            set_exists = isErEenSet(grid.getKaarten())
+            if not set_exists:
+                grid.deselectAllCards()
+                game_phase = GamePhase.AFLEGGEN
+                return
                 
 def render(canvas):
     # Make all layers transparent
@@ -540,7 +541,7 @@ class SelectionHandler:
 class Grid:
     TIJD_TUSSEN_UITDELEN = 0.2 # seconds
     
-    ticks_tussen_uitdelen = TIJD_TUSSEN_UITDELEN * FPS
+    ticks_tussen_uitdelen = int(TIJD_TUSSEN_UITDELEN * FPS)
     
     def initializePositions(self):
         self.posities = []
@@ -670,9 +671,9 @@ class Menu:
         self.position = Menu.positie
         self.texture = ImageLoader.loadImage(f"overige afbeeldingen\\{filename}.png")
         
-        self.easy = Button(self.easy_position, 'easy')
-        self.normal = Button(self.normal_position, 'normal')
-        self.hard = Button(self.hard_position, 'hard')
+        self.easy = Button(30, self.easy_position, 'easy')
+        self.normal = Button(15, self.normal_position, 'normal')
+        self.hard = Button(8, self.hard_position, 'hard')
         
         self.z_index = 20
         
@@ -686,8 +687,9 @@ class Menu:
         pass
         
 class Button:
-    def __init__(self, position = (0,0), filename = 'blank'):
+    def __init__(self, seconds_to_choose_set, position = (0,0), filename = 'blank'):
         self.position = position
+        self.seconds_to_choose_set = seconds_to_choose_set
         
         self.texture = ImageLoader.loadImage(f"overige afbeeldingen\\{filename}.png")
         
@@ -707,8 +709,9 @@ class Button:
         pass
     
     def click(self, position):
-        global game_phase
+        global game_phase, total_ticks_since_phase_change, SECONDS_TO_CHOOSE_SET
         if game_phase == GamePhase.MENU:
+            SECONDS_TO_CHOOSE_SET = self.seconds_to_choose_set
             game_phase = GamePhase.GAME_START
     
     def isMouseInside(self, position):
