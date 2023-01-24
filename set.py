@@ -14,12 +14,13 @@ stapel_op = False
 SECONDS_TO_CHOOSE_SET = 15
 SECONDS_BEFORE_CAP_SET = 5
 PC_PICKING_TIME = 0.5 # seconds
+
 # === Enums ===
 class GamePhase(Enum):
     MENU = 0
     GAME_START = 1
-    FINDING_SETS = 2
-    COLLECTING_SET = 3
+    SETS_VINDEN = 2
+    SET_INNEN = 3
     DOORSCHUIVEN = 4
     AANVULLEN = 5
     PC_PICKING_CARDS = 6
@@ -50,7 +51,7 @@ total_ticks_since_phase_change = 0
 game_phase = GamePhase.MENU
 pc_picking_ticks = int(PC_PICKING_TIME * FPS)
 
-# === ALLES RONDOM DE LOGICA ACHTER SET ===
+# === FUNCTIES ===
 @dataclass(frozen = True)
 class Kaart:
     kleur : int
@@ -111,7 +112,6 @@ def isErEenSet(kaarten):
         return False
     return True
 
-# === ALLES RONDOM HET GUI ===
 def initialize():
     global menu, grid, you, pc
     pygame.init()
@@ -178,14 +178,22 @@ def loop():
     
 def tick():
     global selected_cards, game_phase, pc_set
+    # Game objects
     for game_object in game_objects:
         game_object.tick()
         
-    grid.tick()
+    # Alle werking achter het spel
+    if game_phase == GamePhase.GAME_START:
+        if total_ticks_since_phase_change >= 12 * Grid.ticks_tussen_uitdelen:
+            game_phase = GamePhase.SETS_VINDEN
+            return
+        
+        if total_ticks_since_phase_change % Grid.ticks_tussen_uitdelen == 0:
+            grid.nieuweKaart()
     
     if game_phase == GamePhase.AANVULLEN:
         if total_ticks_since_phase_change >= 3 * Grid.ticks_tussen_uitdelen:
-            game_phase = GamePhase.FINDING_SETS
+            game_phase = GamePhase.SETS_VINDEN
             return
             
         if total_ticks_since_phase_change % Grid.ticks_tussen_uitdelen == 0:
@@ -196,13 +204,13 @@ def tick():
             grid.doorschuiven()
         if total_ticks_since_phase_change == GlideAnimation.total_glide_ticks:
             if grid.stapel_op:
-                game_phase = GamePhase.FINDING_SETS
+                game_phase = GamePhase.SETS_VINDEN
                 return
             else:
                 game_phase = GamePhase.AANVULLEN
                 return
         
-    if game_phase == GamePhase.COLLECTING_SET:
+    if game_phase == GamePhase.SET_INNEN:
         # start the moving of cards
         if total_ticks_since_phase_change == GlideAnimation.total_glide_ticks:
             game_phase = GamePhase.DOORSCHUIVEN
@@ -216,7 +224,8 @@ def tick():
                     card.chosen = True
                     card.glide(pc.score_card.position)
             pc.score += 1
-            game_phase = GamePhase.COLLECTING_SET
+            SoundPlayer.playSound("audio\\point.wav")
+            game_phase = GamePhase.SET_INNEN
             return
         
         if total_ticks_since_phase_change % pc_picking_ticks == 0:
@@ -242,7 +251,7 @@ def tick():
             game_phase = GamePhase.DOORSCHUIVEN
             return
     
-    if game_phase == GamePhase.FINDING_SETS:
+    if game_phase == GamePhase.SETS_VINDEN:
         if len(selected_cards) == 3:
             kaarten = [card.kaart for card in selected_cards]
             if isEenSet(kaarten):
@@ -250,8 +259,9 @@ def tick():
                     card.glide(you.score_card.position)
                     card.chosen = True
                 you.score += 1
+                SoundPlayer.playSound("audio\\point.wav")
                 grid.deselectAllCards()
-                game_phase = GamePhase.COLLECTING_SET
+                game_phase = GamePhase.SET_INNEN
                 return
             else:
                 for card in selected_cards:
@@ -405,7 +415,7 @@ class SetCard(VisualCard):
                 surface.blit(self.wrong_blink_layer_texture, self.position)
     
     def click(self, position):
-        if game_phase == GamePhase.FINDING_SETS:
+        if game_phase == GamePhase.SETS_VINDEN:
             self.you_selected = not self.you_selected
             if self.you_selected:
                 selected_cards.append(self)
@@ -458,6 +468,69 @@ class ScoreCard(VisualCard):
         name_text_y = name_text_center_y - name_text_rect.height // 2
         
         surface.blit(name_text_surface, (name_text_x, name_text_y))
+
+class Menu:
+    global SCREEN_WIDTH, SCREEN_HEIGHT
+    
+    @classmethod
+    def initialize(cls):
+        cls.menu_width = VisualCard.HEIGHT + 2 * grid.card_margin
+        cls.menu_height = 3 * VisualCard.WIDTH + 4 * grid.card_margin
+        cls.positie = ((SCREEN_WIDTH - cls.menu_width) // 2, (SCREEN_HEIGHT - cls.menu_height) // 2)
+        cls.easy_position = (cls.positie[0] + grid.card_margin, cls.positie[1] + grid.card_margin)
+        cls.normal_position = (cls.positie[0] + grid.card_margin, cls.easy_position[1] + grid.card_margin+VisualCard.WIDTH)
+        cls.hard_position = (cls.positie[0] + grid.card_margin, cls.normal_position[1] + grid.card_margin+VisualCard.WIDTH)
+    
+    def __init__(self, filename = 'menu'):
+        self.position = Menu.positie
+        self.texture = ImageLoader.loadImage(f"overige afbeeldingen\\{filename}.png")
+        
+        self.easy = Button(30, self.easy_position, 'easy')
+        self.normal = Button(15, self.normal_position, 'normal')
+        self.hard = Button(1, self.hard_position, 'hard')
+        
+        self.z_index = 20
+        
+        game_objects.append(self)
+        
+    def render(self, surface):
+        if game_phase == GamePhase.MENU:
+            surface.blit(self.texture, self.position)
+    
+    def tick(self):
+        pass
+        
+class Button:
+    def __init__(self, seconds_to_choose_set, position = (0,0), filename = 'blank'):
+        self.position = position
+        self.seconds_to_choose_set = seconds_to_choose_set
+        
+        self.texture = ImageLoader.loadImage(f"overige afbeeldingen\\{filename}.png")
+        
+        self.selection_handler = SelectionHandler(self)
+        
+        self.selected = False
+        
+        self.z_index = 30
+        
+        game_objects.append(self)
+    
+    def render(self, surface):
+        if game_phase == GamePhase.MENU:
+            surface.blit(self.texture, self.position)
+        
+    def tick(self):
+        pass
+    
+    def click(self, position):
+        global game_phase, total_ticks_since_phase_change, SECONDS_TO_CHOOSE_SET
+        if game_phase == GamePhase.MENU:
+            SECONDS_TO_CHOOSE_SET = self.seconds_to_choose_set
+            game_phase = GamePhase.GAME_START
+    
+    def isMouseInside(self, position):
+        bounding_box = pygame.Rect(self.position, (VisualCard.HEIGHT, VisualCard.WIDTH))
+        return bounding_box.collidepoint(position)
 
 # === OTHER OBJECTS ===
 class Player:
@@ -610,20 +683,6 @@ class Grid:
         card.glide(self.posities[lege_plek_index])
         
         SoundPlayer.playSound("audio\\card_place.wav")
-        
-    def tick(self):
-        global game_phase, total_ticks_since_phase_change, total_ticks_since_new_card
-        
-        if game_phase == GamePhase.GAME_START:
-            # check if game start is finished
-            if total_ticks_since_phase_change >= 120:
-                game_phase = GamePhase.FINDING_SETS
-                
-        if game_phase == GamePhase.GAME_START:
-            # add card
-            if total_ticks_since_phase_change % 10 == 0:
-                kaart = self.kaarten_op_stapel.pop()
-                self.plaatsKaart(kaart, total_ticks_since_phase_change // 10)
                 
     def getKaarten(self):
         return [card.kaart for card in self.cards]
@@ -667,69 +726,6 @@ class Grid:
         for card in self.cards:
             lege_plekken.remove(card.position_index)
         return lege_plekken
-                    
-class Menu:
-    global SCREEN_WIDTH, SCREEN_HEIGHT
-    
-    @classmethod
-    def initialize(cls):
-        cls.menu_width = VisualCard.HEIGHT + 2*grid.card_margin
-        cls.menu_height = 3*VisualCard.WIDTH + 4*grid.card_margin
-        cls.positie = ((SCREEN_WIDTH - cls.menu_width) // 2, (SCREEN_HEIGHT - cls.menu_height) // 2)
-        cls.easy_position = (cls.positie[0]+grid.card_margin, cls.positie[1]+grid.card_margin)
-        cls.normal_position = (cls.positie[0]+grid.card_margin, cls.easy_position[1]+grid.card_margin+VisualCard.WIDTH)
-        cls.hard_position = (cls.positie[0]+grid.card_margin, cls.normal_position[1]+grid.card_margin+VisualCard.WIDTH)
-    
-    def __init__(self, filename = 'menu'):
-        self.position = Menu.positie
-        self.texture = ImageLoader.loadImage(f"overige afbeeldingen\\{filename}.png")
-        
-        self.easy = Button(30, self.easy_position, 'easy')
-        self.normal = Button(15, self.normal_position, 'normal')
-        self.hard = Button(1, self.hard_position, 'hard')
-        
-        self.z_index = 20
-        
-        game_objects.append(self)
-        
-    def render(self, surface):
-        if game_phase == GamePhase.MENU:
-            surface.blit(self.texture, self.position)
-    
-    def tick(self):
-        pass
-        
-class Button:
-    def __init__(self, seconds_to_choose_set, position = (0,0), filename = 'blank'):
-        self.position = position
-        self.seconds_to_choose_set = seconds_to_choose_set
-        
-        self.texture = ImageLoader.loadImage(f"overige afbeeldingen\\{filename}.png")
-        
-        self.selection_handler = SelectionHandler(self)
-        
-        self.selected = False
-        
-        self.z_index = 30
-        
-        game_objects.append(self)
-    
-    def render(self, surface):
-        if game_phase == GamePhase.MENU:
-            surface.blit(self.texture, self.position)
-        
-    def tick(self):
-        pass
-    
-    def click(self, position):
-        global game_phase, total_ticks_since_phase_change, SECONDS_TO_CHOOSE_SET
-        if game_phase == GamePhase.MENU:
-            SECONDS_TO_CHOOSE_SET = self.seconds_to_choose_set
-            game_phase = GamePhase.GAME_START
-    
-    def isMouseInside(self, position):
-        bounding_box = pygame.Rect(self.position, (VisualCard.HEIGHT, VisualCard.WIDTH))
-        return bounding_box.collidepoint(position)
         
 # Start het spel
 if __name__ == "__main__":
