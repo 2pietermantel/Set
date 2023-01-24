@@ -9,9 +9,6 @@ SCREEN_HEIGHT = 720 # pixels
 
 FPS = 60
 
-ticks_since_gejat = 0
-ticks_since_doorschuiven = 0
-allowed = True
 stapel_op = False
 
 SECONDS_TO_CHOOSE_SET = 15
@@ -33,8 +30,8 @@ class Colours(Enum):
     BACKGROUND = (221, 221, 221)
     TRANSPARENT = (0, 0, 0, 0)
     
-    YOU = (255, 0, 0)
-    PC = (0, 0, 255)
+    YOU = (0, 0, 255)
+    PC = (255, 0, 0)
 
 # === PROGRAMMEERVARIABELEN ===
 # game_objects zijn de objects met de functies tick() en render(surface).
@@ -131,6 +128,8 @@ def initialize():
     you = Player("YOU", Colours.YOU.value,  (20, 20))
     pc = Player("PC", Colours.PC.value, (20, 20 + VisualCard.HEIGHT + grid.card_margin))
     
+    SetCard.initialize()
+    
     loop()
     
 def loop():
@@ -178,7 +177,7 @@ def loop():
     pygame.quit()
     
 def tick():
-    global selected_cards, stapel_op, game_phase, pc_set
+    global selected_cards, game_phase, pc_set
     for game_object in game_objects:
         game_object.tick()
         
@@ -196,7 +195,7 @@ def tick():
         if total_ticks_since_phase_change == 0:
             grid.doorschuiven()
         if total_ticks_since_phase_change == GlideAnimation.total_glide_ticks:
-            if stapel_op:
+            if grid.stapel_op:
                 game_phase = GamePhase.FINDING_SETS
                 return
             else:
@@ -213,7 +212,7 @@ def tick():
         if total_ticks_since_phase_change >= 3 * pc_picking_ticks:
             for card in grid.cards:
                 if card.kaart in pc_set:
-                    card.selected = False
+                    card.pc_selected = False
                     card.chosen = True
                     card.glide(pc.score_card.position)
             pc.score += 1
@@ -225,7 +224,8 @@ def tick():
             kaart = pc_set[index]
             for card in grid.cards:
                 if card.kaart == kaart:
-                    card.selected = True
+                    card.pc_selected = True
+            SoundPlayer.playSound("audio\\card_select.wav")
                     
     if game_phase == GamePhase.AFLEGGEN:
         if total_ticks_since_phase_change < 3 * Grid.ticks_tussen_uitdelen:
@@ -233,6 +233,7 @@ def tick():
                 index = total_ticks_since_phase_change // Grid.ticks_tussen_uitdelen
                 grid.cards[index].chosen = True
                 grid.cards[index].glide(grid.aflegstapel_positie)
+                SoundPlayer.playSound("audio\\card_place.wav")
                 
         if total_ticks_since_phase_change == GlideAnimation.total_glide_ticks:
             grid.aflegstapel.texture = ImageLoader.loadImage("kaarten\\blank.gif")
@@ -330,6 +331,7 @@ class VisualCard:
             self.glide_animation.tick()
             self.position = self.glide_animation.getCurrentPosition()
             if self.glide_animation.isFinished():
+                self.position = self.glide_animation.end
                 self.gliding = False
         
     def render(self, surface):
@@ -347,6 +349,14 @@ class SetCard(VisualCard):
     wrong_blink_cycle_ticks = 2 * wrong_blink_ticks # the amount of ticks it is displayed AND not displayed
     wrong_blink_total_ticks = wrong_blink_cycle_ticks * WRONG_BLINKS
     
+    @classmethod
+    def initialize(cls):
+        cls.you_selected_texture = ImageLoader.loadImage("overige afbeeldingen\\selection_box.png").copy()
+        cls.pc_selected_texture = ImageLoader.loadImage("overige afbeeldingen\\selection_box.png").copy()
+        
+        ImageLoader.changeImageColour(cls.you_selected_texture, Colours.YOU.value)
+        ImageLoader.changeImageColour(cls.pc_selected_texture, Colours.PC.value)
+    
     def __init__(self, position_index, card):
         # Get the filename by getting the values as a list, converting those values to strings and joining it together
         filename = "".join([str(x) for x in card.getValues()])
@@ -357,8 +367,8 @@ class SetCard(VisualCard):
         self.kaart = card
         
         self.selection_handler = SelectionHandler(self)
-        self.selected = False
-        self.selection_box_texture = ImageLoader.loadImage("overige afbeeldingen\\selection_box.png")
+        self.you_selected = False
+        self.pc_selected = False
         
         self.wrong_blink_layer_texture = ImageLoader.loadImage("overige afbeeldingen\\wrong_blink_layer.png")
         self.wrong_blink_tick = -1
@@ -382,8 +392,11 @@ class SetCard(VisualCard):
         
     def render(self, surface):
         # render selection
-        if self.selected:
-            surface.blit(self.selection_box_texture, (self.position[0] - 5, self.position[1] - 5))
+        if self.you_selected:
+            surface.blit(self.you_selected_texture, (self.position[0] - 5, self.position[1] - 5))
+            
+        if self.pc_selected:
+            surface.blit(self.pc_selected_texture, (self.position[0] - 5, self.position[1] - 5))
             
         super().render(surface)
         # render wrong blink effect
@@ -393,11 +406,13 @@ class SetCard(VisualCard):
     
     def click(self, position):
         if game_phase == GamePhase.FINDING_SETS:
-            self.selected = not self.selected
-            if self.selected:
+            self.you_selected = not self.you_selected
+            if self.you_selected:
                 selected_cards.append(self)
             else:
                 selected_cards.remove(self)
+                
+            SoundPlayer.playSound("audio\\card_select.wav")
     
     def isMouseInside(self, position):
         bounding_box = pygame.Rect(self.position, (VisualCard.WIDTH, VisualCard.HEIGHT))
@@ -471,6 +486,15 @@ class ImageLoader:
         image = pygame.image.load(filename)
         cls.images[filename] = image
         return image
+    
+    @staticmethod
+    def changeImageColour(surface, colour):
+        r, g, b = colour
+        width, height = surface.get_size()
+        for x in range(width):
+            for y in range(height):
+                alpha = surface.get_at((x, y))[3]
+                surface.set_at((x, y), (r, g, b, alpha))
 
 class SoundPlayer:
     sounds = {}
@@ -491,7 +515,7 @@ class GlideAnimation:
     end : tuple
     current_tick : int
     
-    GLIDE_DURATION = 0.5 # seconds
+    GLIDE_DURATION = 0.7 # seconds
     total_glide_ticks = int(GLIDE_DURATION * FPS)
     
     def __init__(self, begin, end, current_tick = 0):
@@ -507,8 +531,8 @@ class GlideAnimation:
         dy = self.end[1] - self.begin[1]
         dt = self.current_tick / GlideAnimation.total_glide_ticks
         
-        # f = -0.2*(dt-1.5)**4+1
-        f = 2 / (1 + 2 ** (- 8 * dt)) - 1
+        f = -0.2*(dt - 1.31) ** 6 + 1
+        # f = 2 / (1 + 2 ** (- 11 * dt)) - 1
         
         x = self.begin[0] + dx * f
         y = self.begin[1] + dy * f
@@ -558,6 +582,7 @@ class Grid:
         self.card_margin = card_margin
         self.initializePositions()
         
+        self.stapel_op = False
         self.kaarten_op_stapel = []
         for kleur in range(1,4):
             for vorm in range(1,4):
@@ -572,7 +597,8 @@ class Grid:
         game_objects.append(self.trekstapel)
         self.cards = []
         
-        self.aflegstapel = VisualCard(self.aflegstapel_positie, filename = "lege_aflegstapel")
+        self.aflegstapel = VisualCard(self.aflegstapel_positie, filename = "lege_stapel")
+        self.aflegstapel.z_index = -10
         game_objects.append(self.aflegstapel)
 
     def plaatsKaart(self, kaart, lege_plek_index):
@@ -582,6 +608,8 @@ class Grid:
         game_objects.append(card)
         self.cards.append(card)
         card.glide(self.posities[lege_plek_index])
+        
+        SoundPlayer.playSound("audio\\card_place.wav")
         
     def tick(self):
         global game_phase, total_ticks_since_phase_change, total_ticks_since_new_card
@@ -603,7 +631,8 @@ class Grid:
     def deselectAllCards(self):
         global selected_cards
         for card in selected_cards:
-            card.selected = False
+            card.you_selected = False
+            card.pc_selected = False
         selected_cards = []
         
     def doorschuiven(self):
@@ -624,25 +653,14 @@ class Grid:
                         lege_plekken.append(card.position_index)
                         card.position_index = i
                         lege_plekken.remove(i)
-    
-    def nieuweKaarten(self):
-        global stapel_op
-        
-        for i in range(9,12):
-            if len(self.kaarten_op_stapel) > 0:
-                card = self.kaarten_op_stapel.pop()
-                self.plaatsKaart(card, i)
-            else:
-                stapel_op = True
                 
     def nieuweKaart(self):
-        global stapel_op
-        
         lege_plek = self.legePlekken()[0]
         kaart = self.kaarten_op_stapel.pop()
         self.plaatsKaart(kaart, lege_plek)
         if len(self.kaarten_op_stapel) == 0:
-            stapel_op = True
+            self.stapel_op = True
+            self.trekstapel.texture = ImageLoader.loadImage("kaarten\\lege_stapel.gif")
                 
     def legePlekken(self):
         lege_plekken = [i for i in range(12)]
@@ -668,7 +686,7 @@ class Menu:
         
         self.easy = Button(30, self.easy_position, 'easy')
         self.normal = Button(15, self.normal_position, 'normal')
-        self.hard = Button(8, self.hard_position, 'hard')
+        self.hard = Button(1, self.hard_position, 'hard')
         
         self.z_index = 20
         
