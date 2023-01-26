@@ -59,7 +59,7 @@ class Kaart:
     
     def getValues(self):
         return [self.kleur, self.vorm, self.vulling, self.aantal]
-    
+'''   
 def isEenSet(kaarten):
     kaart1 = kaarten[0]
     kaart2 = kaarten[1]
@@ -94,6 +94,24 @@ def isEenSet(kaarten):
             return False
     return True
 
+def isEenSet(kaarten):
+    if (kaarten[0].kleur + kaarten[1].kleur + kaarten[2].kleur) % 3 != 0:
+        return False
+    if (kaarten[0].vorm + kaarten[1].vorm + kaarten[2].vorm) % 3 != 0:
+        return False
+    if (kaarten[0].vulling + kaarten[1].vulling + kaarten[2].vulling) % 3 != 0:
+        return False
+    if (kaarten[0].aantal + kaarten[1].aantal + kaarten[2].aantal) % 3 != 0:
+        return False
+    return True
+'''
+def isEenSet(kaarten):
+    kaart1, kaart2, kaart3 = kaarten
+    for e1, e2, e3 in zip(kaart1.getValues(), kaart2.getValues(), kaart3.getValues()):
+        if (e1 + e2 + e3) % 3 != 0:
+            return False
+    return True
+        
 def vindSets(kaarten):
     combinaties = []
     for index1, kaart1 in enumerate(kaarten[:-2]):
