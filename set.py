@@ -23,6 +23,7 @@ class GamePhase(Enum):
     AANVULLEN = 5
     PC_PICKING_CARDS = 6
     AFLEGGEN = 7
+    EINDE = 8
     
 class Colours(Enum):
     # (R, G, B) of (R, G, B, A)
@@ -50,61 +51,6 @@ game_phase = GamePhase.MENU
 pc_picking_ticks = int(PC_PICKING_TIME * FPS)
 
 # === FUNCTIES ===
-@dataclass(frozen = True)
-class Kaart:
-    kleur : int
-    vorm : int
-    vulling : int
-    aantal : int
-    
-    def getValues(self):
-        return [self.kleur, self.vorm, self.vulling, self.aantal]
-'''   
-def isEenSet(kaarten):
-    kaart1 = kaarten[0]
-    kaart2 = kaarten[1]
-    kaart3 = kaarten[2]
-    #Controleren van gelijke kleur
-    if kaart1.kleur == kaart2.kleur:
-        if kaart1.kleur != kaart3.kleur:
-            return False
-    else:
-        if kaart1.kleur == kaart3.kleur or kaart2.kleur == kaart3.kleur:
-            return False
-    #Controleren van gelijke vorm
-    if kaart1.vorm == kaart2.vorm:
-        if kaart1.vorm != kaart3.vorm:
-            return False
-    else:
-        if kaart1.vorm == kaart3.vorm or kaart2.vorm == kaart3.vorm:
-            return False
-    #Controleren van gelijke vulling
-    if kaart1.vulling == kaart2.vulling:
-        if kaart1.vulling != kaart3.vulling:
-            return False
-    else:
-        if kaart1.vulling == kaart3.vulling or kaart2.vulling == kaart3.vulling:
-            return False
-    #Controleren van gelijk aantal
-    if kaart1.aantal == kaart2.aantal:
-        if kaart1.aantal != kaart3.aantal:
-            return False
-    else:
-        if kaart1.aantal == kaart3.aantal or kaart2.aantal == kaart3.aantal:
-            return False
-    return True
-
-def isEenSet(kaarten):
-    if (kaarten[0].kleur + kaarten[1].kleur + kaarten[2].kleur) % 3 != 0:
-        return False
-    if (kaarten[0].vorm + kaarten[1].vorm + kaarten[2].vorm) % 3 != 0:
-        return False
-    if (kaarten[0].vulling + kaarten[1].vulling + kaarten[2].vulling) % 3 != 0:
-        return False
-    if (kaarten[0].aantal + kaarten[1].aantal + kaarten[2].aantal) % 3 != 0:
-        return False
-    return True
-'''
 def isEenSet(kaarten):
     kaart1, kaart2, kaart3 = kaarten
     for e1, e2, e3 in zip(kaart1.getValues(), kaart2.getValues(), kaart3.getValues()):
@@ -147,6 +93,13 @@ def initialize():
     SetCard.initialize()
     
     loop()
+    
+def reset():
+    global game_objects
+    game_objects = [game_object for game_object in game_objects if type(game_object) != SetCard]
+    grid.reset()
+    you.score = 0
+    pc.score = 0
     
 def loop():
     global total_ticks, total_ticks_since_phase_change, total_ticks_since_new_card
@@ -298,8 +251,22 @@ def tick():
             set_exists = isErEenSet(grid.getKaarten())
             if not set_exists:
                 grid.deselectAllCards()
-                game_phase = GamePhase.AFLEGGEN
+                if grid.stapel_op:
+                    grid.aflegstapel.z_index = 10
+                    game_phase = GamePhase.EINDE
+                    return
+                else:
+                    game_phase = GamePhase.AFLEGGEN
+                    return
+    
+    if game_phase == GamePhase.EINDE:
+        if total_ticks_since_phase_change % grid.ticks_tussen_uitdelen == 0:
+            index = total_ticks_since_phase_change // grid.ticks_tussen_uitdelen
+            if index >= len(grid.cards):
+                game_phase = GamePhase.MENU
                 return
+            grid.cards[index].glide(grid.aflegstapel_positie)
+            SoundPlayer.playSound("audio\\card_place.wav")
                 
 def render(canvas):
     # Make all layers transparent
@@ -542,6 +509,7 @@ class Button:
         global game_phase, total_ticks_since_phase_change, SECONDS_TO_CHOOSE_SET
         if game_phase == GamePhase.MENU:
             SECONDS_TO_CHOOSE_SET = self.seconds_to_choose_set
+            reset()
             game_phase = GamePhase.GAME_START
     
     def isMouseInside(self, position):
@@ -549,6 +517,16 @@ class Button:
         return bounding_box.collidepoint(position)
 
 # === OTHER OBJECTS ===
+@dataclass(frozen = True)
+class Kaart:
+    kleur : int
+    vorm : int
+    vulling : int
+    aantal : int
+    
+    def getValues(self):
+        return [self.kleur, self.vorm, self.vulling, self.aantal]
+
 class Player:
     def __init__(self, name, colour, score_card_position):
         self.name = name
@@ -671,6 +649,17 @@ class Grid:
         self.card_margin = card_margin
         self.initializePositions()
         
+        self.trekstapel = VisualCard(self.trekstapel_positie)
+        self.trekstapel.z_index = -10
+        game_objects.append(self.trekstapel)
+        
+        self.aflegstapel = VisualCard(self.aflegstapel_positie, filename = "lege_stapel")
+        self.aflegstapel.z_index = -10
+        game_objects.append(self.aflegstapel)
+        
+        self.reset()
+        
+    def reset(self):
         self.stapel_op = False
         self.kaarten_op_stapel = []
         for kleur in range(1,4):
@@ -681,14 +670,10 @@ class Grid:
         
         random.shuffle(self.kaarten_op_stapel)
         
-        self.trekstapel = VisualCard(self.trekstapel_positie)
-        self.trekstapel.z_index = -10
-        game_objects.append(self.trekstapel)
         self.cards = []
-        
-        self.aflegstapel = VisualCard(self.aflegstapel_positie, filename = "lege_stapel")
+        self.trekstapel.texture = ImageLoader.loadImage("kaarten\\blank.gif")
+        self.aflegstapel.texture = ImageLoader.loadImage("kaarten\\lege_stapel.gif")
         self.aflegstapel.z_index = -10
-        game_objects.append(self.aflegstapel)
 
     def plaatsKaart(self, kaart, lege_plek_index):
         card = SetCard(lege_plek_index, kaart)
