@@ -9,8 +9,6 @@ SCREEN_HEIGHT = 720 # pixels
 
 FPS = 60
 
-stapel_op = False
-
 SECONDS_TO_CHOOSE_SET = 15
 SECONDS_BEFORE_CAP_SET = 5
 PC_PICKING_TIME = 0.5 # seconds
