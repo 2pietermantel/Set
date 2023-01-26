@@ -57,15 +57,28 @@ def isEenSet(kaarten):
         if (e1 + e2 + e3) % 3 != 0:
             return False
     return True
-        
+
 def vindSets(kaarten):
     combinaties = []
+    # loop over alle combinaties van twee kaarten
     for index1, kaart1 in enumerate(kaarten[:-2]):
-        for index2, kaart2 in enumerate(kaarten[index1+1:-1]):
-            for index3, kaart3 in enumerate(kaarten[index2+1:]):
-                x = isEenSet([kaart1,kaart2,kaart3])
-                if x == True:
-                    combinaties.append([kaart1,kaart2,kaart3])
+        for index2, kaart2 in enumerate(kaarten[index1 + 1:-1]):
+            # zoek welke kaart nodig is om de set compleet te maken
+            bijbehorende_eigenschappen = []
+            for e1, e2 in zip(kaart1.getValues(), kaart2.getValues()):
+                if e1 == e2:
+                    # dan moet de overige kaart dezelfde waarde hebben
+                    bijbehorende_eigenschappen.append(e1)
+                else:
+                    # dan moet de overige kaart de overblijvende waarde hebben
+                    # bij elkaar opgeteld moeten verschillende eigenschappen altijd 6 zijn
+                    bijbehorende_eigenschappen.append(6 - e1 - e2)
+            kleur, vorm, vulling, aantal = bijbehorende_eigenschappen
+            bijbehorende_kaart = Kaart(kleur, vorm, vulling, aantal)
+            for kaart3 in kaarten[index2 + 1:]:
+                if kaart3 == bijbehorende_kaart:
+                    combinaties.append([kaart1, kaart2, kaart3])
+                    
     return combinaties
 
 def isErEenSet(kaarten):
