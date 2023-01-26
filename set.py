@@ -45,7 +45,6 @@ selected_cards = []
 
 layers = []
 
-total_ticks = 0
 total_ticks_since_phase_change = 0
 game_phase = GamePhase.MENU
 pc_picking_ticks = int(PC_PICKING_TIME * FPS)
@@ -115,7 +114,7 @@ def reset():
     pc.score = 0
     
 def loop():
-    global total_ticks, total_ticks_since_phase_change, total_ticks_since_new_card
+    global total_ticks_since_phase_change
     
     # Initialize screen
     clock = pygame.time.Clock()
@@ -147,7 +146,6 @@ def loop():
         
         pygame.display.update()
         
-        total_ticks += 1
         total_ticks_since_phase_change += 1
         
         if game_phase != current_game_phase:
@@ -483,7 +481,7 @@ class Menu:
         
         self.easy = Button(30, self.easy_position, 'easy')
         self.normal = Button(15, self.normal_position, 'normal')
-        self.hard = Button(1, self.hard_position, 'hard')
+        self.hard = Button(8, self.hard_position, 'hard')
         
         self.z_index = 20
         
