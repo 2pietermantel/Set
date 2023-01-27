@@ -58,11 +58,12 @@ def isEenSet(kaarten):
     return True
 
 def vindSets(kaarten):
+    kaarten = sorted(kaarten, key = lambda kaart: kaart.getID())
     combinaties = []
-    # loop over alle combinaties van twee kaarten
+    # Loop over alle combinaties van twee kaarten
     for index1, kaart1 in enumerate(kaarten[:-2]):
         for index2, kaart2 in enumerate(kaarten[index1 + 1:-1]):
-            # zoek welke kaart nodig is om de set compleet te maken
+            # Zoek welke kaart nodig is om de set compleet te maken
             bijbehorende_eigenschappen = []
             for e1, e2 in zip(kaart1.getValues(), kaart2.getValues()):
                 if e1 == e2:
@@ -74,9 +75,12 @@ def vindSets(kaarten):
                     bijbehorende_eigenschappen.append(6 - e1 - e2)
             kleur, vorm, vulling, aantal = bijbehorende_eigenschappen
             bijbehorende_kaart = Kaart(kleur, vorm, vulling, aantal)
-            for kaart3 in kaarten[index2 + 1:]:
-                if kaart3 == bijbehorende_kaart:
-                    combinaties.append([kaart1, kaart2, kaart3])
+            # Zoek nu deze kaart
+            index3 = zoekKaart(kaarten, bijbehorende_kaart, index2 + 1, len(kaarten))
+            # Als deze kaart is gevonden, dan is dit een set
+            if index3 >= 0:
+                kaart3 = kaarten[index3]
+                combinaties.append([kaart1, kaart2, kaart3])
                     
     return combinaties
 
@@ -85,6 +89,18 @@ def isErEenSet(kaarten):
     if combinaties == []:
         return False
     return True
+
+# een functie om in een gesorteerde lijst kaarten een bepaalde kaart te vinden m.b.v. Binary Search
+def zoekKaart(kaarten, kaart, linkergrens, rechtergrens):
+    if linkergrens >= rechtergrens:
+        return -1
+    midden = (linkergrens + rechtergrens) // 2
+    if kaarten[midden] == kaart:
+        return midden
+    if kaarten[midden].getID() > kaart.getID():
+        return zoekKaart(kaarten, kaart, linkergrens, midden)
+    else:
+        return zoekKaart(kaarten, kaart, midden + 1, rechtergrens)
 
 def initialize():
     global menu, grid, you, pc
@@ -251,8 +267,7 @@ def tick():
                 
         if total_ticks_since_phase_change == SECONDS_TO_CHOOSE_SET * FPS:
             sets = vindSets(grid.getKaarten())
-            set_exists = isErEenSet(grid.getKaarten())
-            if set_exists:
+            if len(sets) > 0:
                 grid.deselectAllCards()
                 pc_set = sets[0]
                 game_phase = GamePhase.PC_PICKING_CARDS
@@ -537,6 +552,11 @@ class Kaart:
     
     def getValues(self):
         return [self.kleur, self.vorm, self.vulling, self.aantal]
+    
+    # Een getal tussen de 0 en 80 die een kaart uniek identificeert
+    # Wordt gebruikt bij sorteren en Binary Search
+    def getID(self):
+        return (self.kleur - 1) * 27 + (self.vorm - 1) * 9 + (self.vulling - 1) * 3 + self.aantal - 1
 
 class Player:
     def __init__(self, name, colour, score_card_position):
