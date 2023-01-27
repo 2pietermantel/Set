@@ -58,6 +58,7 @@ def isEenSet(kaarten):
     return True
 
 def vindSets(kaarten):
+    # Sorteer de kaarten op basis van ID
     kaarten = sorted(kaarten, key = lambda kaart: kaart.getID())
     combinaties = []
     # Loop over alle combinaties van twee kaarten
@@ -76,7 +77,7 @@ def vindSets(kaarten):
             kleur, vorm, vulling, aantal = bijbehorende_eigenschappen
             bijbehorende_kaart = Kaart(kleur, vorm, vulling, aantal)
             # Zoek nu deze kaart
-            index3 = zoekKaart(kaarten, bijbehorende_kaart, index2 + 1, len(kaarten))
+            index3 = zoekKaart(kaarten, bijbehorende_kaart, index1 + index2 + 2, len(kaarten))
             # Als deze kaart is gevonden, dan is dit een set
             if index3 >= 0:
                 kaart3 = kaarten[index3]
