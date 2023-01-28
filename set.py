@@ -484,6 +484,7 @@ class Menu:
     
     @classmethod
     def initialize(cls):
+        #Positie van het menu en de bijbehorende knoppen
         cls.menu_width = VisualCard.HEIGHT + 2 * grid.card_margin
         cls.menu_height = 3 * VisualCard.WIDTH + 4 * grid.card_margin
         cls.positie = ((SCREEN_WIDTH - cls.menu_width) // 2, (SCREEN_HEIGHT - cls.menu_height) // 2)
@@ -570,6 +571,7 @@ class Player:
 
 @dataclass
 class Layer:
+    #Een class om ervoor te zorgen dat afbeeldingen in de juiste volgorde boven elkaar liggen
     z_index : int
     surface : pygame.Surface
     used : bool = True
@@ -629,7 +631,7 @@ class GlideAnimation:
         dx = self.end[0] - self.begin[0]
         dy = self.end[1] - self.begin[1]
         dt = self.current_tick / GlideAnimation.total_glide_ticks
-        
+        #Zesdegraads functie die de snelheid van de kaart aanpast over tijd
         f = -0.2*(dt - 1.31) ** 6 + 1
         # f = 2 / (1 + 2 ** (- 11 * dt)) - 1
         
@@ -662,6 +664,7 @@ class Grid:
     ticks_tussen_uitdelen = int(TIJD_TUSSEN_UITDELEN * FPS)
     
     def initializePositions(self):
+        #Bepalen van de posities van de kaarten, stapel en aflegstapel aan de hand van de grootte van het scherm en de kaarten
         self.posities = []
         temp_x = (SCREEN_WIDTH - 7 * VisualCard.WIDTH - 6 * self.card_margin) // 2
         temp_y = (SCREEN_HEIGHT - 2 * VisualCard.HEIGHT - self.card_margin) // 2
@@ -693,13 +696,14 @@ class Grid:
         
     def reset(self):
         self.stapel_op = False
+        #Het toevoegen van alle kaarten op de stapel
         self.kaarten_op_stapel = []
         for kleur in range(1,4):
             for vorm in range(1,4):
                 for vulling in range(1,4):
                     for aantal in range(1,4):
                         self.kaarten_op_stapel.append(Kaart(kleur, vorm, vulling, aantal))
-        
+        #Het schudden van de stapel
         random.shuffle(self.kaarten_op_stapel)
         
         self.cards = []
@@ -708,6 +712,7 @@ class Grid:
         self.aflegstapel.z_index = -10
 
     def plaatsKaart(self, kaart, lege_plek_index):
+        #Functie die kaarten naar een lege positie in de Grid beweegt
         card = SetCard(lege_plek_index, kaart)
         card.position = self.trekstapel_positie
         
@@ -729,14 +734,17 @@ class Grid:
         
     def doorschuiven(self):
         lege_plekken = [i for i in range(12)]
+        #Lijst van alle SetCards in game_objects
         setCards = []
         for game_object in game_objects:
             if type(game_object) is SetCard:
                 setCards.append(game_object)
+        #Verwijderen van alle posities in de grid waar een kaart ligt; zo blijven de lege plekken over
         for i in range(12):
             for card in setCards:
                 if card.position_index == i:
                     lege_plekken.remove(i)
+        #Verplaatsen van kaarten naar lege plekken als nodig
         for card in setCards:
             for i in range(12):
                 if i in lege_plekken:
@@ -747,6 +755,7 @@ class Grid:
                         lege_plekken.remove(i)
                 
     def nieuweKaart(self):
+        #Functie voor het uitdelen van nieuwe kaarten
         lege_plek = self.legePlekken()[0]
         kaart = self.kaarten_op_stapel.pop()
         self.plaatsKaart(kaart, lege_plek)
